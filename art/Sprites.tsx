@@ -3,7 +3,7 @@ import { Biome } from '@deities/athena/map/Biome.tsx';
 import { injectGlobal } from '@emotion/css';
 import paletteSwap, { HEX } from '@nkzw/palette-swap';
 import Variants from 'athena-crisis:asset-variants';
-import { AssetDomain, AssetVersion } from './AssetInfo.tsx';
+import { assetSprite } from './AssetInfo.tsx';
 import BiomeVariants from './BiomeVariants.tsx';
 import VariantConfiguration, { SpriteVariantConfiguration } from './VariantConfiguration.tsx';
 
@@ -39,7 +39,7 @@ const cacheImage = (path: string): [HTMLImageElement, Promise<void>] => {
 };
 
 const getFallbackURL = (name: string) => {
-  const path = `${AssetDomain}/${AssetVersion}/${name}.png`;
+  const path = assetSprite(name);
   cacheImage(path);
   return path;
 };

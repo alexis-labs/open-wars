@@ -10,6 +10,7 @@ const modules = {
   mapData: lazy(() => import('../examples/map-data-examples.tsx')),
   mapEditor: lazy(() => import('../examples/map-editor.tsx')),
   playgroundDemoGame: lazy(() => import('./PlaygroundDemoGame.tsx')),
+  playgroundMainMenu: lazy(() => import('./PlaygroundMainMenu.tsx')),
   portraits: lazy(() => import('../examples/portraits-example.tsx')),
 };
 

@@ -24,6 +24,7 @@ source_strings.json
 tests/testSetup
 tsconfig.tsbuildinfo
 zeus/ai/output/
+art/downloaded/
 
 # Codegen
 apollo/EncodedActions.tsx

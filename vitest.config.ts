@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { defineConfig } from 'vitest/config';
 import presets from './infra/babelPresets.tsx';
 import createResolver from './infra/createResolver.tsx';
+import localArtPlugin from './infra/localArtPlugin.ts';
 
 const root = process.cwd();
 
@@ -14,7 +15,7 @@ dotenv.config({
 });
 
 export default defineConfig({
-  plugins: [createResolver(), babel({ presets }), react()],
+  plugins: [localArtPlugin(), createResolver(), babel({ presets }), react()],
   test: {
     globalSetup: ['./tests/viteServer', './tests/playwrightServer'],
     setupFiles: ['./tests/setup'],
