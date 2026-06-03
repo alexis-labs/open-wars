@@ -11,6 +11,7 @@ import { HumanPlayer } from '@deities/athena/map/Player.tsx';
 import MapData from '@deities/athena/MapData.tsx';
 import { MusicContext, useBiomeMusic, usePlayMusic } from '@deities/hera/audio/Music.tsx';
 import MapEditor from '@deities/hera/editor/MapEditor.tsx';
+import SpriteEditor from '@deities/hera/editor/SpriteEditor.tsx';
 import {
   type MapCreateFunction,
   type MapObject,
@@ -51,7 +52,7 @@ import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import starterMap, { starterMapMetadata } from './starterMap.tsx';
 
-type Screen = 'campaign' | 'mapEditor' | 'menu' | 'options' | 'playing';
+type Screen = 'campaign' | 'mapEditor' | 'menu' | 'options' | 'playing' | 'spriteEditor';
 
 type ErrorBoundaryState = Readonly<{
   error: Error | null;
@@ -303,6 +304,13 @@ function OpenWarsApp() {
     setScreen('mapEditor');
   }, []);
 
+  const openSpriteEditor = useCallback(() => {
+    enableAudioFromUserGesture();
+    setExitMessage(null);
+    setFullscreenMessage(null);
+    setScreen('spriteEditor');
+  }, []);
+
   const openCampaign = useCallback(() => {
     enableAudioFromUserGesture();
     setExitMessage(null);
@@ -489,6 +497,10 @@ function OpenWarsApp() {
     );
   }
 
+  if (screen === 'spriteEditor') {
+    return <LocalSpriteEditor onExitToMenu={backToMenu} />;
+  }
+
   if (screen === 'campaign') {
     return (
       <main className={menuScreen}>
@@ -551,6 +563,10 @@ function OpenWarsApp() {
         ) : (
           <>
             <div className={buttonStack}>
+              <button className={menuButton} onClick={openSpriteEditor}>
+                Sprite Editor
+              </button>
+              <p className={menuHint}>Edit available sprite sheets and local replacements.</p>
               <button className={menuButton} onClick={startNewGame}>
                 Quick play
               </button>
@@ -726,6 +742,19 @@ function LocalMapEditor({
           updateMap={updateMap}
           user={localPlayer}
         />
+      </ScrollContainer>
+    </main>
+  );
+}
+
+function LocalSpriteEditor({ onExitToMenu }: { onExitToMenu: () => void }) {
+  return (
+    <main className={editorScreen}>
+      <button className={editorMenuButton} onClick={onExitToMenu}>
+        Menu
+      </button>
+      <ScrollContainer className={editorScrollContainer}>
+        <SpriteEditor />
       </ScrollContainer>
     </main>
   );

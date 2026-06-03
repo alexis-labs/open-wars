@@ -5,6 +5,7 @@ import paletteSwap, { HEX } from '@nkzw/palette-swap';
 import Variants from 'athena-crisis:asset-variants';
 import { assetSprite } from './AssetInfo.tsx';
 import BiomeVariants from './BiomeVariants.tsx';
+import { getSpriteOverride } from './SpriteOverrides.tsx';
 import VariantConfiguration, { SpriteVariantConfiguration } from './VariantConfiguration.tsx';
 
 type Resource = Readonly<[name: string, url: string]>;
@@ -39,9 +40,13 @@ const cacheImage = (path: string): [HTMLImageElement, Promise<void>] => {
 };
 
 const getFallbackURL = (name: string) => {
-  const path = assetSprite(name);
+  const path = getSpriteOverride(name) || assetSprite(name);
   cacheImage(path);
   return path;
+};
+
+const injectSpriteCSS = (name: string, url: string) => {
+  injectGlobal(`.Sprite-${name} { background-image: url('${url}'); }`);
 };
 
 const loadImage = (url: string) =>
@@ -210,20 +215,26 @@ export function hasSpriteURL(sprite: SpriteVariant, variant: number, biome?: Bio
     throw new Error(`Invalid \`hasSpriteURL('${sprite}', ${variant}, ${biome})\` invocation.`);
   }
 
-  return sprites.has(`${sprite}-${variant}${biome ? `-${biome}` : ''}`);
+  return sprites.has(`${sprite}-${variant}${biome != null ? `-${biome}` : ''}`);
 }
 
-export function spriteURL(sprite: SpriteVariant, variant: number) {
+export function spriteURL(sprite: SpriteVariant, variant: number, biome?: Biome) {
   if (!sprites.size) {
-    throw new Error(`Invalid \`spriteURL('${sprite}', ${variant})\` invocation.`);
+    throw new Error(`Invalid \`spriteURL('${sprite}', ${variant}, ${biome})\` invocation.`);
   }
 
-  const image = sprites.get(`${sprite}-${variant}`);
+  const image = sprites.get(`${sprite}-${variant}${biome != null ? `-${biome}` : ''}`);
   if (!image) {
     throw new Error(`spriteURL: Image not found for ${sprite}-${variant}.`);
   }
 
   return image;
+}
+
+export function updatePreparedSprite(name: string, resource = getFallbackURL(name)) {
+  sprites.set(name, resource);
+  imageMap.set(name, cacheImage(resource));
+  injectSpriteCSS(name, resource);
 }
 
 export function spriteImage(sprite: SpriteVariant, variant: number): HTMLImageElement {

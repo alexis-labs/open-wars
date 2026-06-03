@@ -962,43 +962,48 @@ export default function MapEditor({
           size="wide"
           toggleExpanded={() => setMenuIsExpanded((isExpanded) => !isExpanded)}
         >
-          <Stack alignCenter between gap>
-            <Stack alignCenter between className={cx(ellipsis, mapTitleContainerStyle)} gap>
-              <BiomeIcon biome={map.config.biome} />{' '}
-              {canSelectMap ? (
-                <select
-                  className={mapSelectStyle}
-                  onChange={(event) => {
-                    const id = event.currentTarget.value;
-                    if (id) {
-                      onSelectMap?.(id);
-                    }
-                  }}
-                  onClick={(event) => event.stopPropagation()}
-                  value={selectedMapId}
-                >
-                  {!selectedMapId && (
-                    <option value="">
-                      {mapName || <fbt desc="Fallback name for untitled map">Untitled Map</fbt>}
-                    </option>
-                  )}
-                  {(mapOptions || []).map(({ id, name }) => (
-                    <option key={id} value={id}>
-                      {name || <fbt desc="Fallback name for untitled map">Untitled Map</fbt>}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div className={ellipsis}>
-                  {mapName || (
-                    <span className={lightColorStyle}>
-                      <fbt desc="Fallback name for untitled map">Untitled Map</fbt>
-                    </span>
-                  )}
-                </div>
-              )}
+          <Stack between gap>
+            <Stack alignCenter between gap>
+              <Stack alignCenter between className={cx(ellipsis, mapTitleContainerStyle)} gap>
+                <BiomeIcon biome={map.config.biome} />{' '}
+                {canSelectMap ? (
+                  <select
+                    className={mapSelectStyle}
+                    onChange={(event) => {
+                      const id = event.currentTarget.value;
+                      if (id) {
+                        onSelectMap?.(id);
+                      }
+                    }}
+                    onClick={(event) => event.stopPropagation()}
+                    value={selectedMapId}
+                  >
+                    {!selectedMapId && (
+                      <option value="">
+                        {mapName || <fbt desc="Fallback name for untitled map">Untitled Map</fbt>}
+                      </option>
+                    )}
+                    {(mapOptions || []).map(({ id, name }) => (
+                      <option key={id} value={id}>
+                        {name || <fbt desc="Fallback name for untitled map">Untitled Map</fbt>}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className={ellipsis}>
+                    {mapName || (
+                      <span className={lightColorStyle}>
+                        <fbt desc="Fallback name for untitled map">Untitled Map</fbt>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </Stack>
+              <InlineLink className={cx(linkStyle, menuIsExpanded && hideStyle)}>
+                <Icon className={menuIconStyle} icon={ChevronDown} />
+              </InlineLink>
             </Stack>
-            <Stack alignCenter gap>
+            <Stack alignCenter className={quickActionContainerStyle} gap>
               {onNewMap && (
                 <Button className={quickActionButtonStyle} onClick={onNewMap}>
                   <fbt desc="Button to start a new map in the editor">New Map</fbt>
@@ -1020,9 +1025,6 @@ export default function MapEditor({
                   <fbt desc="Button to save a copy of the current map">Save Copy</fbt>
                 </Button>
               )}
-              <InlineLink className={cx(linkStyle, menuIsExpanded && hideStyle)}>
-                <Icon className={menuIconStyle} icon={ChevronDown} />
-              </InlineLink>
             </Stack>
           </Stack>
           {menuIsExpanded && (
@@ -1246,6 +1248,11 @@ const mapSelectStyle = css`
   padding: 0;
   text-overflow: ellipsis;
   width: 100%;
+`;
+
+const quickActionContainerStyle = css`
+  flex-wrap: wrap;
+  justify-content: flex-end;
 `;
 
 const quickActionButtonStyle = css`
