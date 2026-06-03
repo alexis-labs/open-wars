@@ -61,6 +61,7 @@ export default function MapEditorSettingsPanel({
   isAdmin,
   mapName,
   mapObject,
+  openSaveAsDialog,
   resize,
   saveMap,
   setEditorState,
@@ -76,6 +77,7 @@ export default function MapEditorSettingsPanel({
   isAdmin?: boolean;
   mapName: string;
   mapObject?: MapObject | null;
+  openSaveAsDialog?: () => void;
   resize: (size: SizeVector, origin: Set<ResizeOrigin>) => void;
   saveMap: SaveMapFunction;
   setEditorState: (setEditorState: Partial<EditorState>) => void;
@@ -622,9 +624,9 @@ export default function MapEditorSettingsPanel({
         <InlineLink onClick={() => saveMap(map)}>
           <fbt desc="Button to save a map">Save Map</fbt>
         </InlineLink>
-        {mapObject?.id && (
-          <InlineLink onClick={() => saveMap(map, 'New')}>
-            <fbt desc="Button to save as a new map">Save as new Map</fbt>
+        {mapObject?.id && openSaveAsDialog && (
+          <InlineLink onClick={openSaveAsDialog}>
+            <fbt desc="Button to save a map under a new name">Save As</fbt>
           </InlineLink>
         )}
         {!process.env.IS_LANDING_PAGE && (

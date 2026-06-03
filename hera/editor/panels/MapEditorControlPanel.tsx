@@ -59,6 +59,7 @@ export default function MapEditorControlPanel({
   isAdmin,
   mapName,
   mapObject,
+  openSaveAsDialog,
   previousState,
   resetMap,
   resize,
@@ -86,6 +87,7 @@ export default function MapEditorControlPanel({
   isAdmin?: boolean;
   mapName: string;
   mapObject?: MapObject | null;
+  openSaveAsDialog?: () => void;
   previousState: PreviousMapEditorState | null;
   resetMap: () => void;
   resize: (size: SizeVector, origin: Set<ResizeOrigin>) => void;
@@ -239,6 +241,7 @@ export default function MapEditorControlPanel({
                 isAdmin={isAdmin}
                 mapName={mapName}
                 mapObject={mapObject}
+                openSaveAsDialog={openSaveAsDialog}
                 resize={resize}
                 saveMap={saveMap}
                 setEditorState={setEditorState}

@@ -126,6 +126,65 @@ export default function RestrictionsPanel({
     [update, state.map, blocklistedUnits, editor?.selected?.unit?.id, setEditorState],
   );
 
+  const blocklistAllBuildings = useCallback(() => {
+    const newBlocklistedBuildings = new Set(blocklistedBuildings);
+    for (const building of buildings) {
+      newBlocklistedBuildings.add(building.id);
+    }
+    update({
+      map: state.map.copy({
+        config: state.map.config.copy({
+          blocklistedBuildings: newBlocklistedBuildings,
+        }),
+      }),
+    });
+    if (editor?.selected?.building && newBlocklistedBuildings.has(editor.selected.building.id)) {
+      setEditorState({
+        selected: {
+          building: undefined,
+        },
+      });
+    }
+  }, [
+    blocklistedBuildings,
+    buildings,
+    editor?.selected?.building,
+    setEditorState,
+    state.map,
+    update,
+  ]);
+
+  const blocklistAllUnits = useCallback(() => {
+    const newBlocklistedUnits = new Set(blocklistedUnits);
+    for (const unit of units) {
+      newBlocklistedUnits.add(unit.id);
+    }
+    update({
+      map: state.map.copy({
+        config: state.map.config.copy({
+          blocklistedUnits: newBlocklistedUnits,
+        }),
+      }),
+    });
+    if (editor?.selected?.unit && newBlocklistedUnits.has(editor.selected.unit.id)) {
+      setEditorState({
+        selected: {
+          unit: undefined,
+        },
+      });
+    }
+  }, [blocklistedUnits, editor?.selected?.unit, setEditorState, state.map, units, update]);
+
+  const allBuildingsBlocklisted = useMemo(
+    () => buildings.every((building) => blocklistedBuildings.has(building.id)),
+    [blocklistedBuildings, buildings],
+  );
+
+  const allUnitsBlocklisted = useMemo(
+    () => units.every((unit) => blocklistedUnits.has(unit.id)),
+    [blocklistedUnits, units],
+  );
+
   const [showSkillSelector, setShowSkillSelector] = useState(false);
 
   const onClose = useCallback(() => {
@@ -162,27 +221,37 @@ export default function RestrictionsPanel({
         <Tick animationConfig={AnimationConfig}>
           <VStack between gap={24} wrap>
             {buildings.length ? (
-              <Box alignStart between wrap>
-                <InlineTileList
-                  biome={biome}
-                  buildings={buildings}
-                  onSelect={selectBuilding}
-                  size="tall"
-                  tiles={buildings.map((building) =>
-                    getTileInfo(getAnyBuildingTileField(building.info)),
-                  )}
-                />
-              </Box>
+              <VStack alignStart gap={8}>
+                <InlineLink disabled={allBuildingsBlocklisted} onClick={blocklistAllBuildings}>
+                  <fbt desc="Button to restrict all buildings on a map">Remove All Buildings</fbt>
+                </InlineLink>
+                <Box alignStart between wrap>
+                  <InlineTileList
+                    biome={biome}
+                    buildings={buildings}
+                    onSelect={selectBuilding}
+                    size="tall"
+                    tiles={buildings.map((building) =>
+                      getTileInfo(getAnyBuildingTileField(building.info)),
+                    )}
+                  />
+                </Box>
+              </VStack>
             ) : null}
             {units.length ? (
-              <Box alignStart between wrap>
-                <InlineTileList
-                  biome={biome}
-                  onSelect={selectUnit}
-                  tiles={units.map((unit) => getAnyUnitTile(unit.info) || Plain)}
-                  units={units}
-                />
-              </Box>
+              <VStack alignStart gap={8}>
+                <InlineLink disabled={allUnitsBlocklisted} onClick={blocklistAllUnits}>
+                  <fbt desc="Button to restrict all units on a map">Remove All Units</fbt>
+                </InlineLink>
+                <Box alignStart between wrap>
+                  <InlineTileList
+                    biome={biome}
+                    onSelect={selectUnit}
+                    tiles={units.map((unit) => getAnyUnitTile(unit.info) || Plain)}
+                    units={units}
+                  />
+                </Box>
+              </VStack>
             ) : null}
           </VStack>
         </Tick>

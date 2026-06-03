@@ -443,16 +443,24 @@ function OpenWarsApp() {
 
   const createEditorMap = useCallback<MapCreateFunction>(
     (variables, setSaveState) => {
+      if (isEditorMapNameTaken(editorMapLibrary.maps, variables.mapName)) {
+        setSaveState({ id: 'name-exists' });
+        return;
+      }
       saveCreatedMap(createEditorMapObject(variables), setSaveState);
     },
-    [saveCreatedMap],
+    [editorMapLibrary.maps, saveCreatedMap],
   );
 
   const updateEditorMap = useCallback<MapUpdateFunction>(
     (variables, _type, setSaveState) => {
+      if (isEditorMapNameTaken(editorMapLibrary.maps, variables.mapName, variables.id)) {
+        setSaveState({ id: 'name-exists' });
+        return;
+      }
       saveCreatedMap(createEditorMapObject(variables, variables.id), setSaveState);
     },
-    [saveCreatedMap],
+    [editorMapLibrary.maps, saveCreatedMap],
   );
 
   const selectEditorMap = useCallback((id: string) => {
@@ -467,6 +475,18 @@ function OpenWarsApp() {
       ...library,
       current: null,
     }));
+    setEditorSessionKey((key) => key + 1);
+  }, []);
+
+  const deleteEditorMap = useCallback((id: string) => {
+    setEditorMapLibrary((library) => {
+      const maps = library.maps.filter((mapObject) => mapObject.id !== id);
+      saveEditorMapObjects(maps);
+      return {
+        current: library.current?.id === id ? maps[0] || null : library.current,
+        maps,
+      };
+    });
     setEditorSessionKey((key) => key + 1);
   }, []);
 
@@ -489,6 +509,7 @@ function OpenWarsApp() {
         editorSessionKey={editorSessionKey}
         mapObject={editorMapLibrary.current}
         mapObjects={editorMapLibrary.maps}
+        onDeleteMap={deleteEditorMap}
         onExitToMenu={backToMenu}
         onNewMap={createNewEditorMap}
         onSelectMap={selectEditorMap}
@@ -704,6 +725,7 @@ function LocalMapEditor({
   editorSessionKey,
   mapObject,
   mapObjects,
+  onDeleteMap,
   onExitToMenu,
   onNewMap,
   onSelectMap,
@@ -713,6 +735,7 @@ function LocalMapEditor({
   editorSessionKey: number;
   mapObject: MapObject | null;
   mapObjects: ReadonlyArray<MapObject>;
+  onDeleteMap: (id: string) => void;
   onExitToMenu: () => void;
   onNewMap: () => void;
   onSelectMap: (id: string) => void;
@@ -734,6 +757,7 @@ function LocalMapEditor({
           key={mapObject?.id || `new-map-${editorSessionKey}`}
           mapObject={mapObject}
           mapOptions={mapObjects}
+          onDeleteMap={onDeleteMap}
           onNewMap={onNewMap}
           onSelectMap={onSelectMap}
           quickSave
@@ -855,6 +879,17 @@ function saveMap(map: MapData, effects: Effects) {
   } catch {
     // Storage can fail in private browsing or under quota pressure. The game remains playable.
   }
+}
+
+function isEditorMapNameTaken(
+  mapObjects: ReadonlyArray<MapObject>,
+  name: string,
+  excludeId?: string,
+) {
+  const normalized = name.trim().toLowerCase();
+  return mapObjects.some(
+    (mapObject) => mapObject.id !== excludeId && mapObject.name.trim().toLowerCase() === normalized,
+  );
 }
 
 function createEditorMapObject(

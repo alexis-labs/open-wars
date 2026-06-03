@@ -32,17 +32,21 @@ import undo, { UndoType } from '@deities/hermes/game/undo.tsx';
 import { sm } from '@deities/ui/Breakpoints.tsx';
 import Button from '@deities/ui/Button.tsx';
 import isControlElement from '@deities/ui/controls/isControlElement.tsx';
+import useBlockInput from '@deities/ui/controls/useBlockInput.tsx';
 import useInput from '@deities/ui/controls/useInput.tsx';
 import { applyVar, insetStyle } from '@deities/ui/cssVar.tsx';
 import ellipsis from '@deities/ui/ellipsis.tsx';
 import ErrorText from '@deities/ui/ErrorText.tsx';
+import FormButton from '@deities/ui/FormButton.tsx';
 import useAlert from '@deities/ui/hooks/useAlert.tsx';
 import useMedia from '@deities/ui/hooks/useMedia.tsx';
 import usePress from '@deities/ui/hooks/usePress.tsx';
 import useScale from '@deities/ui/hooks/useScale.tsx';
 import Icon from '@deities/ui/Icon.tsx';
 import InlineLink from '@deities/ui/InlineLink.tsx';
+import Input from '@deities/ui/Input.tsx';
 import MenuButton from '@deities/ui/MenuButton.tsx';
+import pixelBorder from '@deities/ui/pixelBorder.tsx';
 import Portal from '@deities/ui/Portal.tsx';
 import PrimaryExpandableMenuButton from '@deities/ui/PrimaryExpandableMenuButton.tsx';
 import Storage from '@deities/ui/Storage.tsx';
@@ -52,7 +56,7 @@ import getFirstOrThrow from '@nkzw/core/getFirstOrThrow.js';
 import random from '@nkzw/core/random.js';
 import Stack, { VStack } from '@nkzw/stack';
 import { fbt } from 'fbtee';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import ChevronDown from 'pixelarticons/svg/chevron-down.svg';
 import ChevronLeft from 'pixelarticons/svg/chevron-left.svg';
 import { ReactNode, RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -127,6 +131,7 @@ const getEditorBaseState = (
   }
 
   editorHistory.current = {
+    ...editorHistory.current,
     undoStack: [['initial', map, effects]],
     undoStackIndex: null,
   };
@@ -205,6 +210,141 @@ const panelShouldExpand = ({ action, mode, objective }: EditorState) =>
   mode === 'settings' ||
   mode === 'setup';
 
+function isMapNameTaken(
+  mapOptions: ReadonlyArray<Pick<MapObject, 'id' | 'name'>> | undefined,
+  name: string,
+  excludeId?: string,
+) {
+  const normalized = name.trim().toLowerCase();
+  return (mapOptions || []).some(
+    (mapOption) => mapOption.id !== excludeId && mapOption.name.trim().toLowerCase() === normalized,
+  );
+}
+
+function SaveAsDialog({
+  initialName,
+  isValidName,
+  mapOptions,
+  onCancel,
+  onSave,
+}: {
+  initialName: string;
+  isValidName: (name: string, extraCharacters: string) => boolean;
+  mapOptions?: ReadonlyArray<Pick<MapObject, 'id' | 'name'>>;
+  onCancel: () => void;
+  onSave: (name: string) => void;
+}) {
+  const [name, setName] = useState(initialName);
+  const error = useMemo(() => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      return fbt('Please enter a map name.', 'Error when saving a map without a name');
+    }
+    if (!isValidName(trimmed, "_ -!?'")) {
+      return fbt('Please enter a valid map name.', 'Error dialog when saving a map');
+    }
+    if (isMapNameTaken(mapOptions, trimmed)) {
+      return fbt(
+        'A map with this name already exists.',
+        'Error when saving a map with duplicate name',
+      );
+    }
+    return null;
+  }, [isValidName, mapOptions, name]);
+
+  const cancel = useCallback(
+    (event?: { preventDefault: () => void }) => {
+      event?.preventDefault();
+      onCancel();
+    },
+    [onCancel],
+  );
+
+  const accept = useCallback(
+    (event?: { preventDefault: () => void }) => {
+      event?.preventDefault();
+      if (error) {
+        return;
+      }
+      onSave(name.trim());
+    },
+    [error, name, onSave],
+  );
+
+  useBlockInput('top');
+  useInput('accept', error ? () => {} : accept, 'top');
+  useInput('cancel', cancel, 'top');
+  useInput('menu', (event) => event.preventDefault(), 'top');
+
+  return (
+    <>
+      <div className={saveAsBackgroundStyle} onClick={cancel} />
+      <motion.div
+        animate={{
+          opacity: 1,
+          transform: 'scale(1)',
+        }}
+        className={saveAsWrapperStyle}
+        exit={{
+          opacity: 0,
+          transform: 'scale(0)',
+        }}
+        initial={{
+          opacity: 0,
+          transform: 'scale(0)',
+        }}
+        transition={{
+          duration: 0.25,
+          ease: [0.34, 1.26, 0.64, 1],
+        }}
+      >
+        <Stack alignCenter center className={saveAsWrapperStyle} wrap>
+          <div className={saveAsContainerStyle}>
+            <VStack between gap={32} stretch wrap>
+              <VStack between gap wrap>
+                <h2>
+                  <fbt desc="Title for save as map dialog">Save As</fbt>
+                </h2>
+                <label>
+                  <VStack gap wrap>
+                    <fbt desc="Label for map name in save as dialog">Map name</fbt>
+                    <Input
+                      autoFocus
+                      onChange={(event) => setName(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          accept();
+                        }
+                      }}
+                      placeholder={String(fbt('map name', 'placeholder for map name'))}
+                      type="text"
+                      value={name}
+                    />
+                  </VStack>
+                </label>
+                {error && <ErrorText>{error}</ErrorText>}
+              </VStack>
+              <Stack between end wrap>
+                <FormButton onClick={cancel} type="button">
+                  <fbt desc="Button to cancel a dialog">Cancel</fbt>
+                </FormButton>
+                <FormButton
+                  className={saveAsAcceptStyle}
+                  disabled={!!error}
+                  onClick={accept}
+                  type="button"
+                >
+                  <fbt desc="Button to save a map under a new name">Save</fbt>
+                </FormButton>
+              </Stack>
+            </VStack>
+          </div>
+        </Stack>
+      </motion.div>
+    </>
+  );
+}
+
 export type BaseMapEditorProps = Readonly<{
   campaignLock?: { id?: string; name: string };
   children?: (props: {
@@ -218,6 +358,7 @@ export type BaseMapEditorProps = Readonly<{
   isValidName?: (name: string, extraCharacters: string) => boolean;
   mapOptions?: ReadonlyArray<Pick<MapObject, 'id' | 'name'>>;
   mode?: EditorMode;
+  onDeleteMap?: (id: string) => void;
   onNewMap?: () => void;
   onSelectMap?: (id: string) => void;
   quickSave?: boolean;
@@ -241,6 +382,7 @@ export default function MapEditor({
   mapObject,
   mapOptions,
   mode,
+  onDeleteMap,
   onNewMap,
   onSelectMap,
   quickSave,
@@ -306,10 +448,12 @@ export default function MapEditor({
   useBiomeMusic(map.config.biome, tags);
   usePlayMusic(map.config.biome);
 
+  const [historyVersion, setHistoryVersion] = useState(0);
   const editorHistory = useRef<EditorHistory>({
     undoStack: [],
     undoStackIndex: null,
   });
+  editorHistory.current.onChange = () => setHistoryVersion((version) => version + 1);
 
   // oxlint-disable-next-line react-hooks-js/refs
   const [editor, _setEditorState] = useState<EditorState>(() =>
@@ -402,6 +546,7 @@ export default function MapEditor({
     [advanceRenderKey, game],
   );
   const [saveState, setSaveState] = useState<MapEditorSaveState | null>(null);
+  const [saveAsDialog, setSaveAsDialog] = useState<{ name: string } | null>(null);
   const [tilted, setIsTilted] = useState(true);
   const [menuIsExpanded, setMenuIsExpanded] = useState(false);
   const [actAsEveryPlayer, setActAsEveryPlayer] = useState(false);
@@ -505,8 +650,9 @@ export default function MapEditor({
 
   const saveMap: SaveMapFunction = useCallback(
     // oxlint-disable-next-line react-hooks-js/preserve-manual-memoization
-    (currentMap, type = 'Update') => {
-      if (!mapName || !isValidName(mapName, "_ -!?'")) {
+    (currentMap, type = 'Update', nameOverride) => {
+      const saveName = nameOverride ?? mapName;
+      if (!saveName || !isValidName(saveName, "_ -!?'")) {
         setSaveState({
           message: fbt('Please enter a valid map name.', 'Error dialog when saving a map'),
         });
@@ -530,13 +676,18 @@ export default function MapEditor({
       setMap('cleanup', actualMap);
 
       const isNew = type === 'New' || !mapObject?.id;
+      if (isMapNameTaken(mapOptions, saveName, isNew ? undefined : mapObject?.id)) {
+        setSaveState({ id: 'name-exists' });
+        return;
+      }
+
       setSaveState(null);
       if (isNew) {
         createMap(
           {
             effects: editor.effects,
             map,
-            mapName,
+            mapName: saveName,
             tags: mapObject?.id ? tags.filter((tag) => tag !== 'published') : tags,
           },
           setSaveState,
@@ -547,7 +698,7 @@ export default function MapEditor({
             effects: editor.effects,
             id: mapObject.id,
             map,
-            mapName,
+            mapName: saveName,
             tags,
           },
           type,
@@ -561,12 +712,87 @@ export default function MapEditor({
       isValidName,
       mapName,
       mapObject?.id,
+      mapOptions,
       setMap,
       tags,
       updateMap,
       withHumanPlayer,
     ],
   );
+
+  const openSaveAsDialog = useCallback(() => {
+    setSaveAsDialog({ name: mapName ? `${mapName} Copy` : '' });
+  }, [mapName]);
+
+  const stepEditorHistory = useCallback(
+    (direction: -1 | 1) => {
+      if (isPlayTesting) {
+        return;
+      }
+
+      const state = stateRef.current;
+      if (!state) {
+        return;
+      }
+
+      const { undoStack, undoStackIndex } = editorHistory.current;
+      if (!undoStack.length) {
+        return;
+      }
+
+      let index: number | null = null;
+      if (direction === -1) {
+        if (undoStackIndex != null) {
+          index = undoStackIndex > 0 ? undoStackIndex - 1 : null;
+        } else {
+          index = undoStack.length > 1 ? undoStack.length - 2 : null;
+        }
+      } else if (undoStackIndex != null && undoStackIndex < undoStack.length - 1) {
+        index = undoStackIndex + 1;
+      }
+
+      if (index == null) {
+        return;
+      }
+
+      const [, newMap, effects] = undoStack.at(index) || [];
+      if (!newMap || !effects) {
+        return;
+      }
+
+      setEditorState({
+        effects,
+        scenario: getDefaultScenario(effects),
+      });
+      editorHistory.current.undoStackIndex = index;
+
+      const position = state.selectedPosition;
+      const selectedBuilding =
+        state.selectedBuilding && position ? newMap.buildings.get(position) : null;
+      const selectedUnit = state.selectedUnit && position ? newMap.units.get(position) : null;
+      if (!newMap.size.equals(state.map.size)) {
+        setMap('cleanup', newMap);
+      }
+      actionsRef.current?.update({
+        map: newMap,
+        selectedBuilding,
+        selectedUnit,
+      });
+      setHistoryVersion((version) => version + 1);
+    },
+    [isPlayTesting, setEditorState, setMap],
+  );
+
+  const { canRedo, canUndo } = useMemo(() => {
+    const { undoStack, undoStackIndex } = editorHistory.current;
+    return {
+      canRedo: undoStackIndex != null && undoStackIndex < undoStack.length - 1,
+      canUndo: undoStack.length > 1 && (undoStackIndex != null ? undoStackIndex > 0 : true),
+    };
+  }, [historyVersion]);
+
+  const undoEditor = useCallback(() => stepEditorHistory(-1), [stepEditorHistory]);
+  const redoEditor = useCallback(() => stepEditorHistory(1), [stepEditorHistory]);
 
   const toggleDeleteEntity = useCallback(
     (isErasing: boolean) => {
@@ -578,6 +804,22 @@ export default function MapEditor({
   );
 
   const { alert } = useAlert();
+  const confirmDeleteMap = useCallback(() => {
+    const id = mapObject?.id;
+    if (!id) {
+      return;
+    }
+
+    alert({
+      acceptText: fbt('Delete', 'Button to confirm deleting a map'),
+      buttonColor: 'red',
+      onAccept: () => onDeleteMap?.(id),
+      text: fbt(
+        'Are you sure you want to delete this map? This cannot be undone.',
+        'Confirmation dialog when deleting a map in the editor',
+      ),
+    });
+  }, [alert, mapObject?.id, onDeleteMap]);
   // oxlint-disable-next-line react-hooks-js/preserve-manual-memoization
   const maybeKeepPlaytestMap = useCallback(() => {
     alert({
@@ -635,42 +877,7 @@ export default function MapEditor({
           // Use `event.key` to ensure consistency on qwertz keyboards.
         } else if (event.key === 'z') {
           event.preventDefault();
-
-          const { undoStack, undoStackIndex } = editorHistory.current;
-          if (undoStack.length) {
-            const direction = event.shiftKey ? 1 : -1;
-            const index = Math.max(
-              -1,
-              Math.min(
-                undoStackIndex != null ? undoStackIndex + direction : undoStack.length - 2,
-                undoStack.length,
-              ),
-            );
-            if (index > -1 && index < undoStack.length) {
-              const [, newMap, effects] = undoStack.at(index) || [];
-              if (newMap && effects) {
-                setEditorState({
-                  effects,
-                  scenario: getDefaultScenario(effects),
-                });
-                editorHistory.current.undoStackIndex = index;
-
-                const position = state.selectedPosition;
-                const selectedBuilding =
-                  state.selectedBuilding && position ? newMap.buildings.get(position) : null;
-                const selectedUnit =
-                  state.selectedUnit && position ? newMap.units.get(position) : null;
-                if (!newMap.size.equals(state.map.size)) {
-                  setMap('cleanup', newMap);
-                }
-                newState = {
-                  map: newMap,
-                  selectedBuilding,
-                  selectedUnit,
-                };
-              }
-            }
-          }
+          stepEditorHistory(event.shiftKey ? 1 : -1);
         }
       } else {
         if (event.code === 'KeyS') {
@@ -729,7 +936,16 @@ export default function MapEditor({
       document.removeEventListener('keydown', keydownListener);
       document.removeEventListener('keyup', keyupListener);
     };
-  }, [editor, isPlayTesting, saveMap, setEditorState, setMap, tilted, toggleDeleteEntity]);
+  }, [
+    editor,
+    isPlayTesting,
+    saveMap,
+    setEditorState,
+    setMap,
+    stepEditorHistory,
+    tilted,
+    toggleDeleteEntity,
+  ]);
 
   useInput(
     'select',
@@ -962,70 +1178,45 @@ export default function MapEditor({
           size="wide"
           toggleExpanded={() => setMenuIsExpanded((isExpanded) => !isExpanded)}
         >
-          <Stack between gap>
-            <Stack alignCenter between gap>
-              <Stack alignCenter between className={cx(ellipsis, mapTitleContainerStyle)} gap>
-                <BiomeIcon biome={map.config.biome} />{' '}
-                {canSelectMap ? (
-                  <select
-                    className={mapSelectStyle}
-                    onChange={(event) => {
-                      const id = event.currentTarget.value;
-                      if (id) {
-                        onSelectMap?.(id);
-                      }
-                    }}
-                    onClick={(event) => event.stopPropagation()}
-                    value={selectedMapId}
-                  >
-                    {!selectedMapId && (
-                      <option value="">
-                        {mapName || <fbt desc="Fallback name for untitled map">Untitled Map</fbt>}
-                      </option>
-                    )}
-                    {(mapOptions || []).map(({ id, name }) => (
-                      <option key={id} value={id}>
-                        {name || <fbt desc="Fallback name for untitled map">Untitled Map</fbt>}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className={ellipsis}>
-                    {mapName || (
-                      <span className={lightColorStyle}>
-                        <fbt desc="Fallback name for untitled map">Untitled Map</fbt>
-                      </span>
-                    )}
-                  </div>
-                )}
-              </Stack>
-              <InlineLink className={cx(linkStyle, menuIsExpanded && hideStyle)}>
-                <Icon className={menuIconStyle} icon={ChevronDown} />
-              </InlineLink>
-            </Stack>
-            <Stack alignCenter className={quickActionContainerStyle} gap>
-              {onNewMap && (
-                <Button className={quickActionButtonStyle} onClick={onNewMap}>
-                  <fbt desc="Button to start a new map in the editor">New Map</fbt>
-                </Button>
-              )}
-              {quickSave && (
-                <Button
-                  className={quickActionButtonStyle}
-                  onClick={() => saveMap(stateRef.current?.map || map)}
+          <Stack alignCenter between gap>
+            <Stack alignCenter between className={cx(ellipsis, mapTitleContainerStyle)} gap>
+              <BiomeIcon biome={map.config.biome} />{' '}
+              {canSelectMap ? (
+                <select
+                  className={mapSelectStyle}
+                  onChange={(event) => {
+                    const id = event.currentTarget.value;
+                    if (id) {
+                      onSelectMap?.(id);
+                    }
+                  }}
+                  onClick={(event) => event.stopPropagation()}
+                  value={selectedMapId}
                 >
-                  <fbt desc="Button to quickly save a map">Quick Save</fbt>
-                </Button>
-              )}
-              {quickSave && mapObject?.id && (
-                <Button
-                  className={quickActionButtonStyle}
-                  onClick={() => saveMap(stateRef.current?.map || map, 'New')}
-                >
-                  <fbt desc="Button to save a copy of the current map">Save Copy</fbt>
-                </Button>
+                  {!selectedMapId && (
+                    <option value="">
+                      {mapName || <fbt desc="Fallback name for untitled map">Untitled Map</fbt>}
+                    </option>
+                  )}
+                  {(mapOptions || []).map(({ id, name }) => (
+                    <option key={id} value={id}>
+                      {name || <fbt desc="Fallback name for untitled map">Untitled Map</fbt>}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className={ellipsis}>
+                  {mapName || (
+                    <span className={lightColorStyle}>
+                      <fbt desc="Fallback name for untitled map">Untitled Map</fbt>
+                    </span>
+                  )}
+                </div>
               )}
             </Stack>
+            <InlineLink className={cx(linkStyle, menuIsExpanded && hideStyle)}>
+              <Icon className={menuIconStyle} icon={ChevronDown} />
+            </InlineLink>
           </Stack>
           {menuIsExpanded && (
             <VStack between className={campaignListStyle} gap={16}>
@@ -1091,6 +1282,44 @@ export default function MapEditor({
         </PrimaryExpandableMenuButton>
         <ZoomButton hide={hidden} max={maxZoom} position="top" setZoom={setZoom} zoom={zoom} />
       </Portal>
+      {!hidden && !menuIsExpanded && !isPlayTesting && (
+        <Portal>
+          <div className={quickActionToolbarStyle} style={insetStyle(inset)}>
+            <Button className={quickActionButtonStyle} disabled={!canUndo} onClick={undoEditor}>
+              <fbt desc="Button to undo the last map editor change">Undo</fbt>
+            </Button>
+            <Button className={quickActionButtonStyle} disabled={!canRedo} onClick={redoEditor}>
+              <fbt desc="Button to redo the last undone map editor change">Redo</fbt>
+            </Button>
+            {onNewMap && (
+              <Button className={quickActionButtonStyle} onClick={onNewMap}>
+                <fbt desc="Button to start a new map in the editor">New Map</fbt>
+              </Button>
+            )}
+            {quickSave && (
+              <Button
+                className={quickActionButtonStyle}
+                onClick={() => saveMap(stateRef.current?.map || map)}
+              >
+                <fbt desc="Button to quickly save a map">Quick Save</fbt>
+              </Button>
+            )}
+            {quickSave && mapObject?.id && (
+              <Button className={quickActionButtonStyle} onClick={openSaveAsDialog}>
+                <fbt desc="Button to save a map under a new name">Save As</fbt>
+              </Button>
+            )}
+            {onDeleteMap && mapObject?.id && (
+              <Button
+                className={cx(quickActionButtonStyle, deleteButtonStyle)}
+                onClick={confirmDeleteMap}
+              >
+                <fbt desc="Button to delete the current map">Delete</fbt>
+              </Button>
+            )}
+          </div>
+        </Portal>
+      )}
       <div className={getDrawerPaddingStyle(drawerPosition, expand)} style={mapScrollAreaStyle}>
         <GameMap
           animatedChildren={({ map, position, showCursor, zIndex }) => (
@@ -1146,6 +1375,7 @@ export default function MapEditor({
                   isAdmin={isAdmin}
                   mapName={mapName}
                   mapObject={mapObject}
+                  openSaveAsDialog={openSaveAsDialog}
                   previousState={previousState}
                   resetMap={resetMap}
                   resize={resize}
@@ -1173,6 +1403,20 @@ export default function MapEditor({
           }}
         </GameMap>
       </div>
+      {saveAsDialog && (
+        <Portal>
+          <SaveAsDialog
+            initialName={saveAsDialog.name}
+            isValidName={isValidName}
+            mapOptions={mapOptions}
+            onCancel={() => setSaveAsDialog(null)}
+            onSave={(name) => {
+              setSaveAsDialog(null);
+              saveMap(stateRef.current?.map || map, 'New', name);
+            }}
+          />
+        </Portal>
+      )}
       <Portal>
         <AnimatePresence mode="sync">
           {saveState && (
@@ -1219,9 +1463,7 @@ export default function MapEditor({
 
 const size = DoubleSize;
 const menuButtonStyle = css`
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  display: -webkit-box;
+  white-space: normal;
 `;
 
 const campaignListStyle = css`
@@ -1250,9 +1492,18 @@ const mapSelectStyle = css`
   width: 100%;
 `;
 
-const quickActionContainerStyle = css`
+const quickActionToolbarStyle = css`
+  display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  gap: 8px;
+  justify-content: center;
+  left: 50%;
+  max-width: calc(100vw - ${DoubleSize * 3}px);
+  pointer-events: auto;
+  position: fixed;
+  top: calc(${applyVar('safe-area-top')} + ${applyVar('inset')});
+  transform: translateX(-50%);
+  z-index: max(calc(${applyVar('inset-z')} + 2), 20);
 `;
 
 const quickActionButtonStyle = css`
@@ -1261,6 +1512,17 @@ const quickActionButtonStyle = css`
   min-height: 28px;
   padding: 3px 8px;
   white-space: nowrap;
+`;
+
+const deleteButtonStyle = css`
+  color: ${applyVar('error-color')};
+
+  &:not(.disabled).hover,
+  &:not(.disabled):hover,
+  &:not(.disabled).active,
+  &:not(.disabled).active:hover {
+    color: ${applyVar('error-color')};
+  }
 `;
 
 const togglePlaytestButtonStyle = css`
@@ -1296,4 +1558,34 @@ const menuIconStyle = css`
 
 const hideStyle = css`
   opacity: 0;
+`;
+
+const saveAsBackgroundStyle = css`
+  background-color: ${applyVar('background-color-light')};
+  inset: 0;
+  position: fixed;
+  z-index: 10000;
+`;
+
+const saveAsWrapperStyle = css`
+  inset: 0;
+  pointer-events: none;
+  position: fixed;
+  z-index: 10001;
+`;
+
+const saveAsContainerStyle = css`
+  ${pixelBorder(applyVar('border-color-light'))}
+  background: ${applyVar('background-color-bright')};
+  filter: drop-shadow(0 0 10px ${applyVar('border-color-light')});
+  padding: 16px;
+  pointer-events: all;
+  position: fixed;
+  width: min(480px, 90vw);
+  z-index: 10002;
+`;
+
+const saveAsAcceptStyle = css`
+  ${pixelBorder(applyVar('highlight-color'), 2)}
+  color: ${applyVar('highlight-color')};
 `;

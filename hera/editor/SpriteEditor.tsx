@@ -54,7 +54,6 @@ const sheetZoom = 2;
 const editorZoom = 16;
 const unitSpriteSize = 32;
 const maxUndoSteps = 20;
-const maxQuickSprites = 12;
 
 const spriteEntries: ReadonlyArray<SpriteEntry> = [...VariantConfiguration]
   .map(([sprite, configuration]) => ({
@@ -312,7 +311,6 @@ export default function SpriteEditor() {
         (!query || sprite.toLowerCase().includes(query)),
     );
   }, [group, search]);
-  const quickEntries = filteredEntries.slice(0, maxQuickSprites);
   const definedRegions = useMemo(
     () => createDefinedRegions(selectedSprite, selectedVariant),
     [selectedSprite, selectedVariant],
@@ -679,20 +677,22 @@ export default function SpriteEditor() {
             Showing {filteredEntries.length} of {spriteEntries.length} sprites.
           </p>
           <div className={quickSpriteListStyle}>
-            {quickEntries.map(({ sprite }) => (
-              <button
-                className={cx(spriteButtonStyle, sprite === selectedSprite && selectedSpriteStyle)}
-                key={sprite}
-                onClick={() => selectSprite(sprite)}
-              >
-                {sprite}
-              </button>
-            ))}
-            {filteredEntries.length > quickEntries.length ? (
-              <p className={catalogMetaStyle}>
-                Use search or the Sprite dropdown for more results.
-              </p>
-            ) : null}
+            {filteredEntries.length ? (
+              filteredEntries.map(({ sprite }) => (
+                <button
+                  className={cx(
+                    spriteButtonStyle,
+                    sprite === selectedSprite && selectedSpriteStyle,
+                  )}
+                  key={sprite}
+                  onClick={() => selectSprite(sprite)}
+                >
+                  {sprite}
+                </button>
+              ))
+            ) : (
+              <p className={catalogMetaStyle}>No sprites match your search.</p>
+            )}
           </div>
         </aside>
 
@@ -974,9 +974,11 @@ const panelCSS = `
 
 const catalogStyle = css`
   ${panelCSS}
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
-  max-height: calc(100vh - 112px);
+  height: calc(100vh - 104px);
+  max-height: calc(100vh - 104px);
   min-height: 0;
   overflow: hidden;
   padding: 16px;
@@ -984,7 +986,8 @@ const catalogStyle = css`
   top: 72px;
 
   @media (max-width: 900px) {
-    max-height: none;
+    height: auto;
+    max-height: 60vh;
     position: static;
   }
 `;
@@ -1014,10 +1017,14 @@ const catalogMetaStyle = css`
 `;
 
 const quickSpriteListStyle = css`
-  display: grid;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   gap: 6px;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding-right: 4px;
 `;
 

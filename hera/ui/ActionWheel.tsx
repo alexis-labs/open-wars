@@ -1,4 +1,9 @@
-import { AnimationConfig, Charge, TileSize } from '@deities/athena/map/Configuration.tsx';
+import {
+  AnimationConfig,
+  Charge,
+  DoubleSize,
+  TileSize,
+} from '@deities/athena/map/Configuration.tsx';
 import vec from '@deities/athena/map/vec.tsx';
 import Vector from '@deities/athena/map/Vector.tsx';
 import AudioPlayer from '@deities/ui/AudioPlayer.tsx';
@@ -37,6 +42,7 @@ import { resetBehavior } from '../behavior/Behavior.tsx';
 import { ClientCoordinates } from '../lib/toTransformOrigin.tsx';
 import Tick from '../Tick.tsx';
 import { Actions } from '../Types.tsx';
+import ensureElementInView, { actionWheelScrollMargin } from './lib/ensureElementInView.tsx';
 import getClientCoordinates from './lib/getClientCoordinates.tsx';
 
 export default function ActionWheel({
@@ -61,9 +67,42 @@ export default function ActionWheel({
   const hasEntities = entityCount && entityCount > 0;
   // Arrangements look more organized if we even out the number of entries.
   const count = hasEntities ? (entityCount < 4 ? 4 : entityCount + (entityCount % 2)) : 0;
+  const [adjustY, setAdjustY] = useState(0);
   const [paused, setPaused] = useState(true);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const scrollWheelIntoView = useCallback(() => {
+    const element = ref.current;
+    if (!element) {
+      return;
+    }
+
+    element.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    ensureElementInView(element);
+    requestAnimationFrame(() => {
+      const { top } = element.getBoundingClientRect();
+      const overflow = actionWheelScrollMargin.top - top;
+      if (overflow <= 0) {
+        setAdjustY(0);
+        return;
+      }
+
+      let zoom = 1;
+      let current: HTMLElement | null = element.parentElement;
+      while (current) {
+        const value = parseFloat(getComputedStyle(current).zoom);
+        if (value > 0 && value !== 1) {
+          zoom = value;
+          break;
+        }
+        current = current.parentElement;
+      }
+      setAdjustY(Math.ceil(overflow / zoom));
+    });
+  }, []);
 
   useEffect(() => {
+    setAdjustY(0);
     if (hasEntities) {
       scrollIntoView([position], true);
     }
@@ -82,9 +121,15 @@ export default function ActionWheel({
         transform: `${translate}scale(0)`,
       }}
       key={String(position)}
-      onAnimationComplete={() => setPaused(false)}
+      onAnimationComplete={() => {
+        setPaused(false);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(scrollWheelIntoView);
+        });
+      }}
       onAnimationStart={() => setPaused(true)}
       onMouseEnter={resetPosition}
+      ref={ref}
       style={
         {
           [cssVar('highlight-color')]: getColor(color),
@@ -98,6 +143,7 @@ export default function ActionWheel({
           zIndex,
           ...(hasEntities
             ? {
+                [vars.set('adjust-y')]: `${adjustY}px`,
                 [vars.set('radius-size')]: count === 9 ? 1.5 : count > 7 ? 1.45 : 1.6,
               }
             : null),
@@ -455,6 +501,7 @@ export function ActionWheelCharge({
 }
 
 const vars = new CSSVariables<
+  | 'adjust-y'
   | 'container-size'
   | 'count'
   | 'description-transform'
@@ -725,13 +772,17 @@ const radiusStyle = css`
 
   height: ${vars.apply('container-size')};
   position: relative;
+  scroll-margin: ${DoubleSize}px;
+  scroll-margin-bottom: ${DoubleSize * 2}px;
+  scroll-margin-top: calc(env(safe-area-inset-top, 0px) + ${DoubleSize * 2.5}px);
   width: ${vars.apply('container-size')};
 
   ${vars.set('x', `calc(${vars.apply('radius')} * -1 + ${vars.apply('item-size')} / 2)`)}
+  ${vars.set('adjust-y', '0px')}
   ${vars.set(
     'y',
     `calc(
-    ${vars.apply('radius')} * -1 + ${vars.apply('item-size')} / 2 - 4px
+    ${vars.apply('radius')} * -1 + ${vars.apply('item-size')} / 2 - 4px + ${vars.apply('adjust-y')}
   )`,
   )}
 `;

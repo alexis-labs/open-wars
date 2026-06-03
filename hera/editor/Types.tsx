@@ -59,6 +59,7 @@ export type EditorSelection = Readonly<{
 }>;
 
 export type EditorHistory = {
+  onChange?: () => void;
   undoStack: UndoStack;
   undoStackIndex: number | null;
 };
@@ -79,7 +80,7 @@ export type EditorState = Readonly<{
   selected?: EditorSelection;
 }>;
 
-export type SaveMapFunction = (currentMap: MapData, type?: MapSaveType) => void;
+export type SaveMapFunction = (currentMap: MapData, type?: MapSaveType, name?: string) => void;
 export type SetEditorStateFunction = (editor: Partial<EditorState>) => void;
 export type SetMapFunction = (
   type: 'biome' | 'cleanup' | 'heal' | 'reset' | 'resize' | 'teams' | 'units',

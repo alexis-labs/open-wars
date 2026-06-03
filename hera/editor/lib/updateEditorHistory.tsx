@@ -11,6 +11,7 @@ export default function updateEditorHistory(
   const indexModifier = entry[0] === lastKey ? 0 : 1;
 
   undoContext.current = {
+    ...undoContext.current,
     undoStack: [
       ...undoStack.slice(
         0,
@@ -20,4 +21,5 @@ export default function updateEditorHistory(
     ],
     undoStackIndex: null,
   };
+  undoContext.current.onChange?.();
 }
