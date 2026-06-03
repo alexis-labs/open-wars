@@ -1041,6 +1041,7 @@ export default function MapEditor({
           inset={inset}
           key={`editor-map-${renderKey}`}
           map={map}
+          pan={editor.mode === 'design' ? true : undefined}
           playerDetails={playerDetails}
           scale={zoom}
           scroll={renderKey === 0}

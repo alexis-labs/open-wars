@@ -9,6 +9,7 @@ import startGame from '@deities/athena/lib/startGame.tsx';
 import updatePlayer from '@deities/athena/lib/updatePlayer.tsx';
 import { HumanPlayer } from '@deities/athena/map/Player.tsx';
 import MapData from '@deities/athena/MapData.tsx';
+import { MusicContext, useBiomeMusic, usePlayMusic } from '@deities/hera/audio/Music.tsx';
 import MapEditor from '@deities/hera/editor/MapEditor.tsx';
 import {
   type MapCreateFunction,
@@ -65,6 +66,7 @@ const savedEditorMapKey = '::OpenWars::editor-map';
 const fullscreenPreferenceKey = '::OpenWars::fullscreen';
 const savedGameKey = '::OpenWars::saved-game';
 const savedGameVersion = 1;
+const soundPreferenceKey = '::OpenWars::sound-enabled';
 
 type SavedGame = Readonly<{
   effects?: ReturnType<typeof encodeEffects>;
@@ -109,6 +111,17 @@ const localMapCreator = {
   username: localPlayer.username,
 };
 
+function isSoundPreferenceEnabled() {
+  return localStorage.getItem(soundPreferenceKey) !== '0';
+}
+
+function enableAudioFromUserGesture(sound: 'UI/Accept' | 'UI/Cancel' | 'UI/Start' = 'UI/Accept') {
+  if (isSoundPreferenceEnabled()) {
+    AudioPlayer.resume();
+    AudioPlayer.playSound(sound);
+  }
+}
+
 initializeCSSVariables();
 injectGlobal(`
   :root {
@@ -130,7 +143,12 @@ portal.style.zIndex = '15';
 document.body.append(portal);
 setDefaultPortalContainer(portal);
 
-AudioPlayer.pause();
+AudioPlayer.preload();
+if (isSoundPreferenceEnabled()) {
+  AudioPlayer.resume();
+} else {
+  AudioPlayer.pause();
+}
 setupGamePad();
 setupHidePointer();
 setupKeyboard();
@@ -139,17 +157,19 @@ registerServiceWorker();
 function RootScope({ children }: { children: ReactNode }) {
   return (
     <MemoryRouter>
-      <LocaleContext>
-        <ScaleContext>
-          <VisibilityStateContext>
-            <HideContext>
-              <AlertContext>
-                <div className={appScope}>{children}</div>
-              </AlertContext>
-            </HideContext>
-          </VisibilityStateContext>
-        </ScaleContext>
-      </LocaleContext>
+      <MusicContext>
+        <LocaleContext>
+          <ScaleContext>
+            <VisibilityStateContext>
+              <HideContext>
+                <AlertContext>
+                  <div className={appScope}>{children}</div>
+                </AlertContext>
+              </HideContext>
+            </VisibilityStateContext>
+          </ScaleContext>
+        </LocaleContext>
+      </MusicContext>
     </MemoryRouter>
   );
 }
@@ -205,7 +225,7 @@ function OpenWarsApp() {
   const [hasSavedGame, setHasSavedGame] = useState(
     () => localStorage.getItem(savedGameKey) != null,
   );
-  const [isSoundEnabled, setSoundEnabled] = useState(() => !AudioPlayer.isPaused());
+  const [isSoundEnabled, setSoundEnabled] = useState(isSoundPreferenceEnabled);
   const [wantsFullscreen, setWantsFullscreen] = useState(
     () => localStorage.getItem(fullscreenPreferenceKey) === '1',
   );
@@ -235,6 +255,7 @@ function OpenWarsApp() {
   }, []);
 
   const startNewGame = useCallback(() => {
+    enableAudioFromUserGesture('UI/Start');
     setExitMessage(null);
     setFullscreenMessage(null);
     setSavedMap(null);
@@ -246,6 +267,7 @@ function OpenWarsApp() {
   }, []);
 
   const continueGame = useCallback(() => {
+    enableAudioFromUserGesture('UI/Start');
     setExitMessage(null);
     setFullscreenMessage(null);
 
@@ -263,6 +285,7 @@ function OpenWarsApp() {
   }, []);
 
   const deleteSave = useCallback(() => {
+    enableAudioFromUserGesture('UI/Cancel');
     setExitMessage(null);
     setSavedMap(null);
     setSavedEffects(null);
@@ -272,18 +295,21 @@ function OpenWarsApp() {
   }, []);
 
   const openMapEditor = useCallback(() => {
+    enableAudioFromUserGesture();
     setExitMessage(null);
     setFullscreenMessage(null);
     setScreen('mapEditor');
   }, []);
 
   const openCampaign = useCallback(() => {
+    enableAudioFromUserGesture();
     setExitMessage(null);
     setFullscreenMessage(null);
     setScreen('campaign');
   }, []);
 
   const playCampaignMap = useCallback((mapObject: MapObject) => {
+    enableAudioFromUserGesture('UI/Start');
     setExitMessage(null);
     setFullscreenMessage(null);
 
@@ -311,12 +337,14 @@ function OpenWarsApp() {
   }, []);
 
   const openOptions = useCallback(() => {
+    enableAudioFromUserGesture();
     setExitMessage(null);
     setFullscreenMessage(null);
     setScreen('options');
   }, []);
 
   const backToMenu = useCallback(() => {
+    enableAudioFromUserGesture('UI/Cancel');
     setFullscreenMessage(null);
     setScreen('menu');
   }, []);
@@ -335,9 +363,13 @@ function OpenWarsApp() {
 
   const toggleSound = useCallback(() => {
     if (AudioPlayer.isPaused()) {
+      localStorage.setItem(soundPreferenceKey, '1');
       AudioPlayer.resume();
+      AudioPlayer.playSound('UI/Accept');
       setSoundEnabled(true);
     } else {
+      AudioPlayer.playSound('UI/Cancel');
+      localStorage.setItem(soundPreferenceKey, '0');
       AudioPlayer.pause();
       setSoundEnabled(false);
     }
@@ -509,7 +541,7 @@ function OpenWarsApp() {
               </button>
               <p className={menuHint}>Create maps with objectives and story events.</p>
               <button className={menuButton} onClick={openOptions}>
-                options
+                Options
               </button>
               <button className={cx(menuButton, exitButton)} onClick={exit}>
                 Exit
@@ -571,6 +603,8 @@ function LocalSkirmish({
       initialSavedMap ? shouldStartInitialMap : true,
     ),
   );
+  useBiomeMusic(game.state.config.biome, initialSavedMap ? undefined : metadata.tags);
+  usePlayMusic(game.state.config.biome);
   const onAction = useClientGameAction(game, setGame);
   const playerDetails = useClientGamePlayerDetails(game.state, localPlayer);
   const onUndo = useCallback((type: UndoType) => {
@@ -696,12 +730,13 @@ function createLocalClientGame(
 ): ClientGame {
   const effects = initialEffects || new Map();
   const state = shouldStart ? prepareLocalMap(map) : map;
+  const lastAction = shouldStart ? null : startAction;
   return {
     effects,
     ended: false,
-    lastAction: startAction,
+    lastAction,
     state,
-    turnState: [state, startAction, effects, []],
+    turnState: [state, lastAction || startAction, effects, []],
   };
 }
 

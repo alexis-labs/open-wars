@@ -313,6 +313,7 @@ export default class GameMap extends Component<Props, State> {
   private _pointerEnabled = true;
   private _pointerLock = { current: false };
   private _pointerPosition: {
+    canPanOutsideMap: boolean;
     clientX: number;
     clientY: number;
     distance: number;
@@ -1772,7 +1773,9 @@ export default class GameMap extends Component<Props, State> {
     if (
       event.pointerType === 'touch' ||
       !element ||
-      (event.target as HTMLElement)?.parentNode !== element
+      (this.props.editor
+        ? !this._pointerPosition.canPanOutsideMap || this._isInteractiveTarget(event.target)
+        : !this._isMapMaskTarget(event.target))
     ) {
       return;
     }
@@ -1796,6 +1799,7 @@ export default class GameMap extends Component<Props, State> {
     window.scrollBy(distanceX * multiplier, distanceY * multiplier);
 
     this._pointerPosition = {
+      canPanOutsideMap: this._pointerPosition.canPanOutsideMap,
       clientX,
       clientY,
       distance: this._pointerPosition.distance + distance,
@@ -1830,8 +1834,23 @@ export default class GameMap extends Component<Props, State> {
     document.removeEventListener('mouseleave', this._clearPanState);
   };
 
+  private _isInteractiveTarget = (target: EventTarget | null) =>
+    !!(target as Element | null)?.closest?.(
+      'a, button, input, select, textarea, [contenteditable="true"], [role="button"]',
+    );
+
+  private _isMapMaskTarget = (target: EventTarget | null) =>
+    (target as HTMLElement | null)?.parentNode === this._maskRef.current;
+
   private _mouseDown = (event: MouseEvent) => {
+    const isMapMaskTarget = this._isMapMaskTarget(event.target);
     this._pointerPosition = {
+      canPanOutsideMap:
+        !!this.props.editor &&
+        !!this.props.pan &&
+        event.button === 0 &&
+        !isMapMaskTarget &&
+        !this._isInteractiveTarget(event.target),
       clientX: event.clientX,
       clientY: event.clientY,
       distance: 0,
@@ -1840,11 +1859,7 @@ export default class GameMap extends Component<Props, State> {
     document.addEventListener('mouseleave', this._clearPanState);
 
     const { editor } = this.props;
-    if (
-      editor &&
-      this.state.position &&
-      (event.target as HTMLElement)?.parentNode === this._maskRef.current
-    ) {
+    if (editor && this.state.position && isMapMaskTarget) {
       if (event.shiftKey || event.button === 2) {
         this._update((actualState) => {
           const { behavior, position } = actualState;

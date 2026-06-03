@@ -237,12 +237,12 @@ function verifyMainMenu() {
 
   let previousIndex = -1;
 
-  for (const label of ['Quick play', 'options', 'Exit']) {
+  for (const label of ['Quick play', 'Options', 'Exit']) {
     const index = primaryMenu.indexOf(label);
     if (index === -1) {
       failures.push(`Production main menu must include ${label}.`);
     } else if (index < previousIndex) {
-      failures.push('Production main menu must order labels as Quick play, options, Exit.');
+      failures.push('Production main menu must order labels as Quick play, Options, Exit.');
     }
     previousIndex = index;
   }
