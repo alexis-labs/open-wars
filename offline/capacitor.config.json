@@ -1,0 +1,9 @@
+{
+  "appId": "com.openwars.game",
+  "appName": "Open Wars",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  },
+  "webDir": "../dist/offline"
+}

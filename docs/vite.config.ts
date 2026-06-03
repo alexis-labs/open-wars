@@ -33,7 +33,7 @@ export default defineConfig(async () => ({
     react(),
     {
       enforce: 'pre',
-      load(id) {
+      load(id: string) {
         if (id === '\0virtual:vocs/user-styles') {
           return `import styles from ${JSON.stringify(`${userStylesPath}?url`)}; export default styles;`;
         }
@@ -42,7 +42,7 @@ export default defineConfig(async () => ({
         }
       },
       name: 'windows-vocs-user-styles',
-      resolveId(id) {
+      resolveId(id: string) {
         if (id.startsWith(mangledWindowsPagesPath)) {
           return pagesPath + id.slice(mangledWindowsPagesPath.length);
         }

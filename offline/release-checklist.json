@@ -1,0 +1,25 @@
+{
+  "blockers": [
+    {
+      "area": "content",
+      "evidence": "The starter skirmish uses offline/starterMap.tsx, but engine art, unit descriptions, character references, and music still include upstream content.",
+      "required": "Replace remaining upstream in-game art/content before public distribution."
+    },
+    {
+      "area": "mobile",
+      "evidence": "Capacitor config exists, but native Android/iOS projects are not present in this checkout.",
+      "required": "Generate and smoke test native mobile wrappers from dist/offline."
+    }
+  ],
+  "requiredChecks": [
+    ".github/workflows/production.yml",
+    "corepack pnpm verify:production validates required files, forbidden references, starter map shape, manifest icons, service worker cache/fallback/update flow, runtime error fallback, main menu labels, non-placeholder options, versioned local save/continue/delete wiring, and PWA install prompt wiring",
+    "corepack pnpm build:offline",
+    "corepack pnpm --dir offline preview",
+    "desktop browser smoke test",
+    "mobile viewport smoke test",
+    "PWA manifest/service worker verification",
+    "native mobile wrapper smoke test"
+  ],
+  "target": "Open Wars web/mobile production shell"
+}

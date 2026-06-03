@@ -3,9 +3,10 @@
 import Button from '@deities/ui/Button.tsx';
 import { css, cx } from '@emotion/css';
 import { useCallback, useState } from 'react';
+import MapEditorExample from '../examples/map-editor.tsx';
 import PlaygroundDemoGame from './PlaygroundDemoGame.tsx';
 
-type Screen = 'menu' | 'options' | 'playing';
+type Screen = 'mapEditor' | 'menu' | 'options' | 'playing';
 
 export default function PlaygroundMainMenu() {
   const [screen, setScreen] = useState<Screen>('menu');
@@ -21,6 +22,12 @@ export default function PlaygroundMainMenu() {
     setExitMessage(null);
     setFullscreenMessage(null);
     setScreen('options');
+  }, []);
+
+  const showMapEditor = useCallback(() => {
+    setExitMessage(null);
+    setFullscreenMessage(null);
+    setScreen('mapEditor');
   }, []);
 
   const backToMenu = useCallback(() => {
@@ -57,6 +64,17 @@ export default function PlaygroundMainMenu() {
     return <PlaygroundDemoGame />;
   }
 
+  if (screen === 'mapEditor') {
+    return (
+      <section className={editorShell}>
+        <Button className={editorMenuButton} onClick={backToMenu}>
+          Menu
+        </Button>
+        <MapEditorExample />
+      </section>
+    );
+  }
+
   return (
     <section className={menuShell}>
       <div className={menuPanel}>
@@ -86,8 +104,12 @@ export default function PlaygroundMainMenu() {
           <>
             <div className={buttonStack}>
               <Button className={menuButton} onClick={play}>
-                Play
+                Quick play
               </Button>
+              <Button className={menuButton} onClick={showMapEditor}>
+                Map editor
+              </Button>
+              <p className={menuHint}>Create maps with objectives and story events.</p>
               <Button className={menuButton} onClick={showOptions}>
                 Options
               </Button>
@@ -154,6 +176,13 @@ const buttonStack = css`
   gap: 12px;
 `;
 
+const menuHint = css`
+  color: #586575;
+  font-size: 14px;
+  line-height: 1.35;
+  margin: -4px 0 4px;
+`;
+
 const menuButton = css`
   box-sizing: border-box;
   font-size: 18px;
@@ -199,4 +228,19 @@ const statusMessage = css`
   font-size: 14px;
   line-height: 1.4;
   margin: 0;
+`;
+
+const editorShell = css`
+  margin: 24px auto;
+  min-height: min(640px, 80vh);
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+`;
+
+const editorMenuButton = css`
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  z-index: 40;
 `;

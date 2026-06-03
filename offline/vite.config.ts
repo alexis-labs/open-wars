@@ -1,18 +1,31 @@
-import { execSync } from 'node:child_process';
+import babel from '@rolldown/plugin-babel';
+import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { ViteMinifyPlugin as minifyHTMLPlugin } from 'vite-plugin-minify';
 import { viteSingleFile } from 'vite-plugin-singlefile';
+import presets from '../infra/babelPresets.tsx';
+import createResolver from '../infra/createResolver.tsx';
+import localArtPlugin from '../infra/localArtPlugin.ts';
+import pixelarticonsPlugin from '../infra/pixelarticonsPlugin.ts';
 
 export default defineConfig({
-  define: {
-    'process.env.CLIENT_URL':
-      process.env.NODE_ENV === 'production'
-        ? '"https://app.athenacrisis.com/"'
-        : `"http://${
-            execSync(`ifconfig | grep "inet " | grep -v 127.0.0.1`)
-              .toString()
-              .match(/inet\s+(\d.+)\s+netmask/i)?.[1] || 'localhost'
-          }:3000"`,
+  base: './',
+  build: {
+    target: 'esnext',
   },
-  plugins: [viteSingleFile(), minifyHTMLPlugin()],
+  define: {
+    'process.env.IS_LANDING_PAGE': `false`,
+    'process.env.NATIVE_APP_VERSION': JSON.stringify(''),
+  },
+  plugins: [
+    localArtPlugin(),
+    createResolver(),
+    pixelarticonsPlugin(),
+    babel({
+      presets,
+    }),
+    react(),
+    viteSingleFile(),
+    minifyHTMLPlugin(),
+  ],
 });

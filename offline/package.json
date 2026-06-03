@@ -2,15 +2,38 @@
   "name": "@deities/offline",
   "version": "0.0.1",
   "private": true,
-  "description": "Offline single file page.",
-  "author": "Christoph Nakazawa <christoph.pojer@gmail.com>",
+  "description": "Open Wars production web and mobile shell.",
+  "author": "Open Wars",
   "repository": {
     "type": "git",
-    "url": "git://github.com/nkzw-tech/athena-crisis.git"
+    "url": "git://github.com/alexis-labs/open-wars.git"
   },
   "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite --host 0.0.0.0 --port 3000",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@deities/apollo": "workspace:*",
+    "@deities/art": "workspace:*",
+    "@deities/athena": "workspace:*",
+    "@deities/hera": "workspace:*",
+    "@deities/hermes": "workspace:*",
+    "@deities/ui": "workspace:*",
+    "@emotion/css": "^11.13.5",
+    "@nkzw/use-visibility-state": "^1.0.4",
+    "framer-motion": "^12.40.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "react-router-dom": "^7.15.1"
+  },
   "devDependencies": {
     "@capacitor/core": "^8.3.4",
+    "@rolldown/plugin-babel": "^0.2.3",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
     "vite-plugin-minify": "^2.1.0",
     "vite-plugin-singlefile": "^2.3.3"
   }

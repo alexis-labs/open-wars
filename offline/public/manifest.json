@@ -1,0 +1,27 @@
+{
+  "background_color": "#121212",
+  "categories": ["games", "strategy"],
+  "description": "A local turn-based strategy game for web and mobile.",
+  "display_override": ["fullscreen", "standalone"],
+  "display": "fullscreen",
+  "id": "/",
+  "icons": [
+    {
+      "purpose": "any maskable",
+      "sizes": "any",
+      "src": "/icon.svg",
+      "type": "image/svg+xml"
+    },
+    {
+      "sizes": "180x180",
+      "src": "/apple-touch-icon.png",
+      "type": "image/png"
+    }
+  ],
+  "name": "Open Wars",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "Open Wars",
+  "start_url": "/",
+  "theme_color": "#121212"
+}
