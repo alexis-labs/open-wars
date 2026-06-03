@@ -46,6 +46,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -69,6 +70,7 @@ const fullscreenPreferenceKey = '::OpenWars::fullscreen';
 const savedGameKey = '::OpenWars::saved-game';
 const savedGameVersion = 1;
 const soundPreferenceKey = '::OpenWars::sound-enabled';
+const campaignCompletedMapsKey = '::OpenWars::campaign-completed-maps';
 
 type SavedGame = Readonly<{
   effects?: ReturnType<typeof encodeEffects>;
@@ -236,6 +238,10 @@ function OpenWarsApp() {
   const [hasAppUpdate, setHasAppUpdate] = useState(false);
   const [exitMessage, setExitMessage] = useState<string | null>(null);
   const [fullscreenMessage, setFullscreenMessage] = useState<string | null>(null);
+  const [activeCampaignMapId, setActiveCampaignMapId] = useState<string | null>(null);
+  const [completedCampaignMapIds, setCompletedCampaignMapIds] = useState(() =>
+    loadCompletedCampaignMapIds(),
+  );
 
   useEffect(() => {
     prepareSprites().catch(() => {});
@@ -264,6 +270,7 @@ function OpenWarsApp() {
     setSavedMap(null);
     setSavedEffects(null);
     setShouldStartSavedMap(false);
+    setActiveCampaignMapId(null);
     setHasSavedGame(false);
     localStorage.removeItem(savedGameKey);
     setScreen('playing');
@@ -279,6 +286,7 @@ function OpenWarsApp() {
       setSavedMap(savedGame.map);
       setSavedEffects(savedGame.effects);
       setShouldStartSavedMap(false);
+      setActiveCampaignMapId(null);
       setHasSavedGame(true);
       setScreen('playing');
     } else {
@@ -318,6 +326,18 @@ function OpenWarsApp() {
     setScreen('campaign');
   }, []);
 
+  const markCampaignMapCompleted = useCallback((mapId: string) => {
+    setCompletedCampaignMapIds((completed) => {
+      if (completed.has(mapId)) {
+        return completed;
+      }
+
+      const next = new Set([...completed, mapId]);
+      saveCompletedCampaignMapIds(next);
+      return next;
+    });
+  }, []);
+
   const playCampaignMap = useCallback((mapObject: MapObject) => {
     enableAudioFromUserGesture('UI/Start');
     setExitMessage(null);
@@ -332,6 +352,7 @@ function OpenWarsApp() {
       setSavedMap(map);
       setSavedEffects(decodeEditorEffects(mapObject.effects));
       setShouldStartSavedMap(true);
+      setActiveCampaignMapId(mapObject.id);
       setScreen('playing');
     } catch {
       setEditorMapLibrary((library) => {
@@ -356,6 +377,7 @@ function OpenWarsApp() {
   const backToMenu = useCallback(() => {
     enableAudioFromUserGesture('UI/Cancel');
     setFullscreenMessage(null);
+    setActiveCampaignMapId(null);
     setScreen('menu');
   }, []);
 
@@ -493,8 +515,10 @@ function OpenWarsApp() {
   if (screen === 'playing') {
     return (
       <LocalSkirmish
+        campaignMapId={activeCampaignMapId}
         initialEffects={savedEffects}
         initialSavedMap={savedMap}
+        onCampaignVictory={markCampaignMapCompleted}
         onExitToMenu={backToMenu}
         onSaved={markSaved}
         shouldStartInitialMap={shouldStartSavedMap}
@@ -531,16 +555,23 @@ function OpenWarsApp() {
           <p className={menuHint}>Choose a created map to start a campaign mission.</p>
           {editorMapLibrary.maps.length ? (
             <div className={createdMapList}>
-              {editorMapLibrary.maps.map((mapObject) => (
-                <button
-                  className={cx(menuButton, createdMapButton)}
-                  key={mapObject.id}
-                  onClick={() => playCampaignMap(mapObject)}
-                >
-                  <span>{mapObject.name || 'Untitled Map'}</span>
-                  <span className={createdMapMeta}>{getEditorMapSummary(mapObject)}</span>
-                </button>
-              ))}
+              {editorMapLibrary.maps.map((mapObject) => {
+                const isCompleted = completedCampaignMapIds.has(mapObject.id);
+
+                return (
+                  <button
+                    className={cx(menuButton, createdMapButton)}
+                    key={mapObject.id}
+                    onClick={() => playCampaignMap(mapObject)}
+                  >
+                    <span className={createdMapTitle}>
+                      {isCompleted ? <span className={campaignCompletedCheck}>✓</span> : null}
+                      <span>{mapObject.name || 'Untitled Map'}</span>
+                    </span>
+                    <span className={createdMapMeta}>{getEditorMapSummary(mapObject)}</span>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <p className={statusMessage}>Create maps in Map editor first.</p>
@@ -638,14 +669,18 @@ function OpenWarsApp() {
 }
 
 function LocalSkirmish({
+  campaignMapId,
   initialEffects,
   initialSavedMap,
+  onCampaignVictory,
   onExitToMenu,
   onSaved,
   shouldStartInitialMap,
 }: {
+  campaignMapId: string | null;
   initialEffects: Effects | null;
   initialSavedMap: MapData | null;
+  onCampaignVictory?: (mapId: string) => void;
   onExitToMenu: () => void;
   onSaved: () => void;
   shouldStartInitialMap: boolean;
@@ -670,10 +705,19 @@ function LocalSkirmish({
     setRenderKey((key) => key + 1);
   }, []);
 
+  const victoryRecorded = useRef(false);
+
   useEffect(() => {
     saveMap(game.state, game.effects);
     onSaved();
   }, [game.effects, game.state, onSaved]);
+
+  useEffect(() => {
+    if (campaignMapId && onCampaignVictory && !victoryRecorded.current && isHumanVictory(game)) {
+      victoryRecorded.current = true;
+      onCampaignVictory(campaignMapId);
+    }
+  }, [campaignMapId, game, onCampaignVictory]);
 
   return (
     <main className={gameScreen}>
@@ -810,6 +854,43 @@ function useResponsiveGameScale(scale: number) {
 
 function createStarterSkirmish(): [MapData, MapMetadata] {
   return [starterMap, starterMapMetadata];
+}
+
+function isHumanVictory(game: ClientGame) {
+  const lastAction = game.lastAction;
+  if (!game.ended || lastAction?.type !== 'GameEnd') {
+    return false;
+  }
+
+  const humanPlayer = game.state.getPlayers().find((player) => player.isHumanPlayer());
+  const winnerId = lastAction.toPlayer;
+  if (!humanPlayer || winnerId == null) {
+    return false;
+  }
+
+  return winnerId === humanPlayer.id || game.state.getTeam(humanPlayer).players.has(winnerId);
+}
+
+function loadCompletedCampaignMapIds(): ReadonlySet<string> {
+  const json = localStorage.getItem(campaignCompletedMapsKey);
+  if (!json) {
+    return new Set();
+  }
+
+  try {
+    const parsed = JSON.parse(json);
+    return new Set(Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveCompletedCampaignMapIds(mapIds: ReadonlySet<string>) {
+  try {
+    localStorage.setItem(campaignCompletedMapsKey, JSON.stringify([...mapIds]));
+  } catch {
+    // Storage can fail in private browsing or under quota pressure.
+  }
 }
 
 function createLocalClientGame(
@@ -1179,6 +1260,20 @@ const createdMapButton = css`
 const createdMapMeta = css`
   color: #697889;
   font-size: 14px;
+`;
+
+const createdMapTitle = css`
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  justify-content: center;
+`;
+
+const campaignCompletedCheck = css`
+  color: #2f8f46;
+  font-size: 18px;
+  font-weight: bold;
+  line-height: 1;
 `;
 
 const menuHint = css`

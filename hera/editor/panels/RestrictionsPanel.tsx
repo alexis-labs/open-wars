@@ -221,37 +221,27 @@ export default function RestrictionsPanel({
         <Tick animationConfig={AnimationConfig}>
           <VStack between gap={24} wrap>
             {buildings.length ? (
-              <VStack alignStart gap={8}>
-                <InlineLink disabled={allBuildingsBlocklisted} onClick={blocklistAllBuildings}>
-                  <fbt desc="Button to restrict all buildings on a map">Remove All Buildings</fbt>
-                </InlineLink>
-                <Box alignStart between wrap>
-                  <InlineTileList
-                    biome={biome}
-                    buildings={buildings}
-                    onSelect={selectBuilding}
-                    size="tall"
-                    tiles={buildings.map((building) =>
-                      getTileInfo(getAnyBuildingTileField(building.info)),
-                    )}
-                  />
-                </Box>
-              </VStack>
+              <Box alignStart between wrap>
+                <InlineTileList
+                  biome={biome}
+                  buildings={buildings}
+                  onSelect={selectBuilding}
+                  size="tall"
+                  tiles={buildings.map((building) =>
+                    getTileInfo(getAnyBuildingTileField(building.info)),
+                  )}
+                />
+              </Box>
             ) : null}
             {units.length ? (
-              <VStack alignStart gap={8}>
-                <InlineLink disabled={allUnitsBlocklisted} onClick={blocklistAllUnits}>
-                  <fbt desc="Button to restrict all units on a map">Remove All Units</fbt>
-                </InlineLink>
-                <Box alignStart between wrap>
-                  <InlineTileList
-                    biome={biome}
-                    onSelect={selectUnit}
-                    tiles={units.map((unit) => getAnyUnitTile(unit.info) || Plain)}
-                    units={units}
-                  />
-                </Box>
-              </VStack>
+              <Box alignStart between wrap>
+                <InlineTileList
+                  biome={biome}
+                  onSelect={selectUnit}
+                  tiles={units.map((unit) => getAnyUnitTile(unit.info) || Plain)}
+                  units={units}
+                />
+              </Box>
             ) : null}
           </VStack>
         </Tick>
@@ -266,11 +256,21 @@ export default function RestrictionsPanel({
               ))}
             </Stack>
           ) : null}
-          <div>
+          <Stack gap={16} wrap>
+            {buildings.length ? (
+              <InlineLink disabled={allBuildingsBlocklisted} onClick={blocklistAllBuildings}>
+                <fbt desc="Button to restrict all buildings on a map">Remove All Buildings</fbt>
+              </InlineLink>
+            ) : null}
+            {units.length ? (
+              <InlineLink disabled={allUnitsBlocklisted} onClick={blocklistAllUnits}>
+                <fbt desc="Button to restrict all units on a map">Remove All Units</fbt>
+              </InlineLink>
+            ) : null}
             <InlineLink onClick={() => setShowSkillSelector(true)}>
               <fbt desc="Link to restrict skills">Restrict Skills</fbt>
             </InlineLink>
-          </div>
+          </Stack>
         </Box>
       </VStack>
       {showSkillSelector && (
