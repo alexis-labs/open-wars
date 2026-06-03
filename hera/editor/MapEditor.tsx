@@ -30,6 +30,7 @@ import AIRegistry from '@deities/dionysus/AIRegistry.tsx';
 import { ClientGame } from '@deities/hermes/game/toClientGame.tsx';
 import undo, { UndoType } from '@deities/hermes/game/undo.tsx';
 import { sm } from '@deities/ui/Breakpoints.tsx';
+import Button from '@deities/ui/Button.tsx';
 import isControlElement from '@deities/ui/controls/isControlElement.tsx';
 import useInput from '@deities/ui/controls/useInput.tsx';
 import { applyVar, insetStyle } from '@deities/ui/cssVar.tsx';
@@ -215,7 +216,11 @@ export type BaseMapEditorProps = Readonly<{
   effects?: Effects;
   inset?: number;
   isValidName?: (name: string, extraCharacters: string) => boolean;
+  mapOptions?: ReadonlyArray<Pick<MapObject, 'id' | 'name'>>;
   mode?: EditorMode;
+  onNewMap?: () => void;
+  onSelectMap?: (id: string) => void;
+  quickSave?: boolean;
   scenario?: Scenario;
   setHasChanges: (hasChanges: boolean) => void;
 }>;
@@ -234,7 +239,11 @@ export default function MapEditor({
   isAdmin,
   isValidName = () => true,
   mapObject,
+  mapOptions,
   mode,
+  onNewMap,
+  onSelectMap,
+  quickSave,
   scenario: initialScenario,
   setHasChanges,
   tiltStyle,
@@ -288,7 +297,10 @@ export default function MapEditor({
   );
 
   const [eventEmitter] = useState(() => new EventTarget());
-  const [renderKey, setRenderKey] = useState(0);
+  const [{ renderKey, scrollRenderKey }, setRenderState] = useState({
+    renderKey: 0,
+    scrollRenderKey: -1,
+  });
   const [map, _setMap] = useState<MapData>(getInitialMap);
   const [tags, _setTags] = useState<ReadonlyArray<string>>(mapObject?.tags || []);
   useBiomeMusic(map.config.biome, tags);
@@ -371,14 +383,23 @@ export default function MapEditor({
   const stateRef = useRef<State | null>(null);
   const actionsRef = useRef<Actions | null>(null);
   const [game, setGame] = useState<ClientGame | null>(null);
+  const advanceRenderKey = useCallback((scroll = false) => {
+    setRenderState(({ renderKey }) => {
+      const nextRenderKey = renderKey + 1;
+      return {
+        renderKey: nextRenderKey,
+        scrollRenderKey: scroll ? nextRenderKey : -1,
+      };
+    });
+  }, []);
   const onUndo = useCallback(
     (type: UndoType) => {
       if (game) {
         setGame(undo(game, type));
-        setRenderKey((renderKey) => renderKey + 1);
+        advanceRenderKey();
       }
     },
-    [game],
+    [advanceRenderKey, game],
   );
   const [saveState, setSaveState] = useState<MapEditorSaveState | null>(null);
   const [tilted, setIsTilted] = useState(true);
@@ -413,10 +434,10 @@ export default function MapEditor({
       if (type === 'teams' && actionsRef.current) {
         actionsRef.current.update({ map });
       } else {
-        setRenderKey((renderKey) => renderKey + 1);
+        advanceRenderKey(type === 'resize');
       }
     },
-    [editor.effects],
+    [advanceRenderKey, editor.effects],
   );
 
   const updatePreviousMap = useCallback((map?: MapData, editorEffects?: Effects) => {
@@ -786,6 +807,7 @@ export default function MapEditor({
         setEditorState({
           action: undefined,
           effects: newEffects,
+          isDrawing: false,
           objective: undefined,
           scenario: getDefaultScenario(newEffects),
         });
@@ -836,6 +858,11 @@ export default function MapEditor({
 
   const fade = renderKey === 0;
   const hidden = useHide();
+  const horizontalMapMargin =
+    tiltStyle === 'on' && tilted ? TileSize * 14 * Math.floor(map.size.height / 4) : TileSize * 40;
+  const mapScrollAreaStyle = {
+    minWidth: map.size.width * TileSize * zoom + horizontalMapMargin,
+  };
   if (isPlayTesting) {
     return (
       <GameMap
@@ -921,6 +948,8 @@ export default function MapEditor({
 
   const hasSaved = saveState && 'id' in saveState && saveState.id === 'saved';
   const expand = panelShouldExpand(editor);
+  const selectedMapId = mapObject?.id || '';
+  const canSelectMap = !!(mapOptions?.length && onSelectMap);
   return (
     <>
       <Portal>
@@ -934,19 +963,67 @@ export default function MapEditor({
           toggleExpanded={() => setMenuIsExpanded((isExpanded) => !isExpanded)}
         >
           <Stack alignCenter between gap>
-            <Stack alignCenter between className={ellipsis} gap>
+            <Stack alignCenter between className={cx(ellipsis, mapTitleContainerStyle)} gap>
               <BiomeIcon biome={map.config.biome} />{' '}
-              <div className={ellipsis}>
-                {mapName || (
-                  <span className={lightColorStyle}>
-                    <fbt desc="Fallback name for untitled map">Untitled Map</fbt>
-                  </span>
-                )}
-              </div>
+              {canSelectMap ? (
+                <select
+                  className={mapSelectStyle}
+                  onChange={(event) => {
+                    const id = event.currentTarget.value;
+                    if (id) {
+                      onSelectMap?.(id);
+                    }
+                  }}
+                  onClick={(event) => event.stopPropagation()}
+                  value={selectedMapId}
+                >
+                  {!selectedMapId && (
+                    <option value="">
+                      {mapName || <fbt desc="Fallback name for untitled map">Untitled Map</fbt>}
+                    </option>
+                  )}
+                  {(mapOptions || []).map(({ id, name }) => (
+                    <option key={id} value={id}>
+                      {name || <fbt desc="Fallback name for untitled map">Untitled Map</fbt>}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className={ellipsis}>
+                  {mapName || (
+                    <span className={lightColorStyle}>
+                      <fbt desc="Fallback name for untitled map">Untitled Map</fbt>
+                    </span>
+                  )}
+                </div>
+              )}
             </Stack>
-            <InlineLink className={cx(linkStyle, menuIsExpanded && hideStyle)}>
-              <Icon className={menuIconStyle} icon={ChevronDown} />
-            </InlineLink>
+            <Stack alignCenter gap>
+              {onNewMap && (
+                <Button className={quickActionButtonStyle} onClick={onNewMap}>
+                  <fbt desc="Button to start a new map in the editor">New Map</fbt>
+                </Button>
+              )}
+              {quickSave && (
+                <Button
+                  className={quickActionButtonStyle}
+                  onClick={() => saveMap(stateRef.current?.map || map)}
+                >
+                  <fbt desc="Button to quickly save a map">Quick Save</fbt>
+                </Button>
+              )}
+              {quickSave && mapObject?.id && (
+                <Button
+                  className={quickActionButtonStyle}
+                  onClick={() => saveMap(stateRef.current?.map || map, 'New')}
+                >
+                  <fbt desc="Button to save a copy of the current map">Save Copy</fbt>
+                </Button>
+              )}
+              <InlineLink className={cx(linkStyle, menuIsExpanded && hideStyle)}>
+                <Icon className={menuIconStyle} icon={ChevronDown} />
+              </InlineLink>
+            </Stack>
           </Stack>
           {menuIsExpanded && (
             <VStack between className={campaignListStyle} gap={16}>
@@ -1012,7 +1089,7 @@ export default function MapEditor({
         </PrimaryExpandableMenuButton>
         <ZoomButton hide={hidden} max={maxZoom} position="top" setZoom={setZoom} zoom={zoom} />
       </Portal>
-      <div className={getDrawerPaddingStyle(drawerPosition, expand)}>
+      <div className={getDrawerPaddingStyle(drawerPosition, expand)} style={mapScrollAreaStyle}>
         <GameMap
           animatedChildren={({ map, position, showCursor, zIndex }) => (
             <ResizeHandle
@@ -1044,7 +1121,7 @@ export default function MapEditor({
           pan={editor.mode === 'design' ? true : undefined}
           playerDetails={playerDetails}
           scale={zoom}
-          scroll={renderKey === 0}
+          scroll={renderKey === 0 || scrollRenderKey === renderKey}
           setEditorState={setEditorState}
           style="floating"
           tilted={tiltStyle === 'on' && tilted}
@@ -1151,6 +1228,32 @@ const campaignListStyle = css`
 
 const lightColorStyle = css`
   color: ${applyVar('text-color-light')};
+`;
+
+const mapTitleContainerStyle = css`
+  flex: 1;
+  min-width: 0;
+`;
+
+const mapSelectStyle = css`
+  background: transparent;
+  border: 0;
+  color: ${applyVar('text-color')};
+  cursor: pointer;
+  font: inherit;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  text-overflow: ellipsis;
+  width: 100%;
+`;
+
+const quickActionButtonStyle = css`
+  font-size: 0.75em;
+  line-height: 1;
+  min-height: 28px;
+  padding: 3px 8px;
+  white-space: nowrap;
 `;
 
 const togglePlaytestButtonStyle = css`

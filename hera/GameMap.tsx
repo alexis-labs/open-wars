@@ -422,13 +422,12 @@ export default class GameMap extends Component<Props, State> {
 
   override componentDidMount() {
     const {
-      props: { editor, events, inset, onAction, scroll },
+      props: { editor, events, onAction, scroll },
       state: { animationConfig, behavior, lastActionResponse, map, paused },
     } = this;
 
     if (scroll) {
-      const container =
-        (inset && this._maskRef.current?.closest(`.${ScrollContainerClassName}`)) || window;
+      const container = this._getScrollContainer();
       if (container === window) {
         (this.context as RefObject<boolean>).current = true;
       }
@@ -1796,7 +1795,7 @@ export default class GameMap extends Component<Props, State> {
     }
 
     this._pointerLock.current = true;
-    window.scrollBy(distanceX * multiplier, distanceY * multiplier);
+    this._scrollBy(distanceX * multiplier, distanceY * multiplier);
 
     this._pointerPosition = {
       canPanOutsideMap: this._pointerPosition.canPanOutsideMap,
@@ -1834,6 +1833,9 @@ export default class GameMap extends Component<Props, State> {
     document.removeEventListener('mouseleave', this._clearPanState);
   };
 
+  private _getScrollContainer = (): Element | Window =>
+    this._maskRef.current?.closest(`.${ScrollContainerClassName}`) || window;
+
   private _isInteractiveTarget = (target: EventTarget | null) =>
     !!(target as Element | null)?.closest?.(
       'a, button, input, select, textarea, [contenteditable="true"], [role="button"]',
@@ -1841,6 +1843,15 @@ export default class GameMap extends Component<Props, State> {
 
   private _isMapMaskTarget = (target: EventTarget | null) =>
     (target as HTMLElement | null)?.parentNode === this._maskRef.current;
+
+  private _scrollBy = (left: number, top: number) => {
+    const container = this._getScrollContainer();
+    if (container === window) {
+      window.scrollBy(left, top);
+    } else {
+      container.scrollBy({ left, top });
+    }
+  };
 
   private _mouseDown = (event: MouseEvent) => {
     const isMapMaskTarget = this._isMapMaskTarget(event.target);

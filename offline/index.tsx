@@ -35,6 +35,7 @@ import cssVar, { applyVar, initializeCSSVariables } from '@deities/ui/cssVar.tsx
 import { AlertContext } from '@deities/ui/hooks/useAlert.tsx';
 import useScale, { ScaleContext } from '@deities/ui/hooks/useScale.tsx';
 import { setDefaultPortalContainer } from '@deities/ui/Portal.tsx';
+import ScrollContainer from '@deities/ui/ScrollContainer.tsx';
 import { css, cx, injectGlobal } from '@emotion/css';
 import { VisibilityStateContext } from '@nkzw/use-visibility-state';
 import {
@@ -222,6 +223,7 @@ function OpenWarsApp() {
   const [shouldStartSavedMap, setShouldStartSavedMap] = useState(false);
   const [editorMapLibrary, setEditorMapLibrary] =
     useState<EditorMapLibrary>(loadSavedEditorMapLibrary);
+  const [editorSessionKey, setEditorSessionKey] = useState(0);
   const [hasSavedGame, setHasSavedGame] = useState(
     () => localStorage.getItem(savedGameKey) != null,
   );
@@ -445,6 +447,21 @@ function OpenWarsApp() {
     [saveCreatedMap],
   );
 
+  const selectEditorMap = useCallback((id: string) => {
+    setEditorMapLibrary((library) => {
+      const current = library.maps.find((mapObject) => mapObject.id === id);
+      return current ? { ...library, current } : library;
+    });
+  }, []);
+
+  const createNewEditorMap = useCallback(() => {
+    setEditorMapLibrary((library) => ({
+      ...library,
+      current: null,
+    }));
+    setEditorSessionKey((key) => key + 1);
+  }, []);
+
   if (screen === 'playing') {
     return (
       <LocalSkirmish
@@ -461,8 +478,12 @@ function OpenWarsApp() {
     return (
       <LocalMapEditor
         createMap={createEditorMap}
+        editorSessionKey={editorSessionKey}
         mapObject={editorMapLibrary.current}
+        mapObjects={editorMapLibrary.maps}
         onExitToMenu={backToMenu}
+        onNewMap={createNewEditorMap}
+        onSelectMap={selectEditorMap}
         updateMap={updateEditorMap}
       />
     );
@@ -664,13 +685,21 @@ function LocalSkirmish({
 
 function LocalMapEditor({
   createMap,
+  editorSessionKey,
   mapObject,
+  mapObjects,
   onExitToMenu,
+  onNewMap,
+  onSelectMap,
   updateMap,
 }: {
   createMap: MapCreateFunction;
+  editorSessionKey: number;
   mapObject: MapObject | null;
+  mapObjects: ReadonlyArray<MapObject>;
   onExitToMenu: () => void;
+  onNewMap: () => void;
+  onSelectMap: (id: string) => void;
   updateMap: MapUpdateFunction;
 }) {
   return (
@@ -678,19 +707,26 @@ function LocalMapEditor({
       <button className={editorMenuButton} onClick={onExitToMenu}>
         Menu
       </button>
-      <MapEditor
-        animationSpeed={null}
-        autoPanning
-        confirmActionStyle="touch"
-        createMap={createMap}
-        fogStyle="soft"
-        isAdmin
-        mapObject={mapObject}
-        setHasChanges={() => {}}
-        tiltStyle="on"
-        updateMap={updateMap}
-        user={localPlayer}
-      />
+      <ScrollContainer className={editorScrollContainer}>
+        <MapEditor
+          animationSpeed={null}
+          autoPanning
+          confirmActionStyle="touch"
+          createMap={createMap}
+          fogStyle="soft"
+          isAdmin
+          key={mapObject?.id || `new-map-${editorSessionKey}`}
+          mapObject={mapObject}
+          mapOptions={mapObjects}
+          onNewMap={onNewMap}
+          onSelectMap={onSelectMap}
+          quickSave
+          setHasChanges={() => {}}
+          tiltStyle="on"
+          updateMap={updateMap}
+          user={localPlayer}
+        />
+      </ScrollContainer>
     </main>
   );
 }
@@ -1194,6 +1230,14 @@ const editorScreen = css`
   min-height: 100dvh;
   overflow: hidden;
   position: relative;
+`;
+
+const editorScrollContainer = css`
+  height: 100vh;
+  height: 100svh;
+  height: 100dvh;
+  overflow: auto;
+  overscroll-behavior: contain;
 `;
 
 const inGameMenuButton = css`
