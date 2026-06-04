@@ -25,3 +25,90 @@ Port 3003 is in use, trying another one...
 [2m10:41:36[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/editor/SpriteEditor.tsx[22m
 [2m10:41:37[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/editor/SpriteEditor.tsx[22m
 [2m10:52:10[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/editor/SpriteEditor.tsx[22m
+[2m11:51:12[22m [36m[1m[vite][22m[39m [32m../infra/localArtPlugin.ts changed, restarting server...[39m
+[2m11:51:13[22m [36m[1m[vite][22m[39m [32m../infra/localArtPlugin.ts changed, restarting server...[39m
+[2m11:51:15[22m [36m[1m[vocs][22m[39m Building search index...
+[2m11:51:16[22m [36m[1m[vocs][22m[39m Search index built.
+[2m11:51:18[22m [36m[1m[vite][22m[39m [32m../infra/localArtPlugin.ts changed, restarting server...[39m
+[2m11:51:19[22m [36m[1m[vite][22m[39m [32m../infra/localArtPlugin.ts changed, restarting server...[39m
+[2m11:51:21[22m [36m[1m[vite][22m[39m server restarted.
+[2m11:51:23[22m [36m[1m[vocs][22m[39m Building search index...
+[2m11:51:25[22m [36m[1m[vocs][22m[39m Search index built.
+[2m11:51:25[22m [36m[1m[vite][22m[39m server restarted.
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m3004[22m/open-source/[39m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m3004[22m/open-source/[39m
+[2m11:51:25[22m [36m[1m[vite][22m[39m [34m[2m(rsc)[22m[39m connected.
+[2m11:51:46[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m connected.
+[2m13:34:39[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/i18n/LocaleContext.tsx[22m
+[2m13:34:39[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/editor/SpriteEditor.tsx, /@fs/C:/Users/amartinho/Documents/open-wars/hera/character/Portrait.tsx[22m
+[2m13:34:39[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/i18n/LocaleContext.tsx[22m Could not Fast Refresh ("Context" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m13:34:39[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/content/playground/ClientScope.tsx[22m
+[2m13:34:39[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/editor/SpriteEditor.tsx, /@fs/C:/Users/amartinho/Documents/open-wars/hera/character/Portrait.tsx[22m
+[2m13:38:07[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/editor/SpriteEditor.tsx, /@fs/C:/Users/amartinho/Documents/open-wars/hera/character/Portrait.tsx[22m
+[2m13:38:07[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/editor/SpriteEditor.tsx, /@fs/C:/Users/amartinho/Documents/open-wars/hera/character/Portrait.tsx[22m
+[2m13:38:08[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/editor/SpriteEditor.tsx, /@fs/C:/Users/amartinho/Documents/open-wars/hera/character/Portrait.tsx[22m
+[2m13:38:09[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/editor/SpriteEditor.tsx, /@fs/C:/Users/amartinho/Documents/open-wars/hera/character/Portrait.tsx[22m
+[2m13:38:09[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/editor/SpriteEditor.tsx, /@fs/C:/Users/amartinho/Documents/open-wars/hera/character/Portrait.tsx[22m
+[2m13:38:10[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/editor/SpriteEditor.tsx, /@fs/C:/Users/amartinho/Documents/open-wars/hera/character/Portrait.tsx[22m
+[2m13:38:16[22m [36m[1m[vite][22m[39m [32m../infra/localArtPlugin.ts changed, restarting server...[39m
+[2m13:38:16[22m [36m[1m[vite][22m[39m [32m../infra/localArtPlugin.ts changed, restarting server...[39m
+[2m13:38:19[22m [36m[1m[vite][22m[39m [32m../infra/localArtPlugin.ts changed, restarting server...[39m
+[2m13:38:19[22m [36m[1m[vocs][22m[39m Building search index...
+[2m13:38:21[22m [36m[1m[vocs][22m[39m Search index built.
+[2m13:38:22[22m [36m[1m[vite][22m[39m [32m../infra/localArtPlugin.ts changed, restarting server...[39m
+[2m13:38:22[22m [36m[1m[vite][22m[39m server restarted.
+[2m13:38:25[22m [36m[1m[vocs][22m[39m Building search index...
+[2m13:38:25[22m [36m[1m[vocs][22m[39m Search index built.
+[2m13:38:27[22m [36m[1m[vite][22m[39m server restarted.
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m3004[22m/open-source/[39m
+[2m13:38:29[22m [36m[1m[vite][22m[39m [34m[2m(rsc)[22m[39m connected.
+[2m13:38:38[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m connected.
+[2m13:40:18[22m [36m[1m[vite][22m[39m [32m../infra/localArtPlugin.ts changed, restarting server...[39m
+[2m13:40:20[22m [36m[1m[vocs][22m[39m Building search index...
+[2m13:40:44[22m [36m[1m[vite][22m[39m [32m../infra/localArtPlugin.ts changed, restarting server...[39m
+[2m13:40:44[22m [36m[1m[vocs][22m[39m Search index built.
+[2m13:40:47[22m [36m[1m[vite][22m[39m server restarted.
+[2m13:40:48[22m [36m[1m[vite][22m[39m [34m[2m(rsc)[22m[39m connected.
+[2m13:40:48[22m [36m[1m[vocs][22m[39m Building search index...
+[2m13:40:49[22m [36m[1m[vocs][22m[39m Search index built.
+[2m13:40:49[22m [36m[1m[vite][22m[39m server restarted.
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m3004[22m/open-source/[39m
+[2m13:40:49[22m [36m[1m[vite][22m[39m [34m[2m(rsc)[22m[39m connected.
+[2m13:40:58[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m connected.
+[2m13:41:27[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/i18n/LocaleContext.tsx[22m
+[2m13:41:27[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/editor/SpriteEditor.tsx, /@fs/C:/Users/amartinho/Documents/open-wars/hera/character/Portrait.tsx[22m
+[2m13:41:27[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/i18n/LocaleContext.tsx[22m Could not Fast Refresh ("Context" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m13:41:27[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/content/playground/ClientScope.tsx[22m
+[2m13:41:27[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/editor/SpriteEditor.tsx, /@fs/C:/Users/amartinho/Documents/open-wars/hera/character/Portrait.tsx[22m
+[2m13:41:33[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/i18n/LocaleContext.tsx[22m
+[2m13:41:33[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/editor/SpriteEditor.tsx, /@fs/C:/Users/amartinho/Documents/open-wars/hera/character/Portrait.tsx[22m
+[2m13:41:33[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/i18n/LocaleContext.tsx[22m Could not Fast Refresh ("Context" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m13:41:33[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/content/playground/ClientScope.tsx[22m
+[2m13:41:44[22m [36m[1m[vite][22m[39m [32m../infra/localArtPlugin.ts changed, restarting server...[39m
+[2m13:42:04[22m [36m[1m[vocs][22m[39m Building search index...
+[2m13:42:04[22m [36m[1m[vocs][22m[39m Search index built.
+[2m13:42:06[22m [36m[1m[vite][22m[39m server restarted.
+[2m13:42:06[22m [36m[1m[vite][22m[39m [34m[2m(rsc)[22m[39m connected.
+[2m13:42:11[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m connected.
+[2m13:42:42[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/editor/SpriteEditor.tsx, /@fs/C:/Users/amartinho/Documents/open-wars/hera/character/Portrait.tsx[22m
+[2m13:42:42[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/editor/SpriteEditor.tsx, /@fs/C:/Users/amartinho/Documents/open-wars/hera/character/Portrait.tsx[22m
+[2m13:42:42[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/editor/SpriteEditor.tsx, /@fs/C:/Users/amartinho/Documents/open-wars/hera/character/Portrait.tsx[22m
+[2m13:42:43[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/editor/SpriteEditor.tsx, /@fs/C:/Users/amartinho/Documents/open-wars/hera/character/Portrait.tsx[22m
+[2m13:42:43[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/editor/SpriteEditor.tsx, /@fs/C:/Users/amartinho/Documents/open-wars/hera/character/Portrait.tsx[22m
+[2m13:42:43[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/i18n/LocaleContext.tsx[22m
+[2m13:42:43[22m [36m[1m[vite][22m[39m [32m../infra/localArtPlugin.ts changed, restarting server...[39m
+[2m13:42:44[22m [36m[1m[vite][22m[39m [32m../infra/localArtPlugin.ts changed, restarting server...[39m
+[2m13:42:44[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/i18n/LocaleContext.tsx[22m Could not Fast Refresh ("Context" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m13:42:44[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/content/playground/ClientScope.tsx[22m
+[2m13:42:50[22m [36m[1m[vocs][22m[39m Building search index...
+[2m13:43:34[22m [36m[1m[vocs][22m[39m Search index built.
+[2m13:43:37[22m [36m[1m[vite][22m[39m server restarted.
+[2m13:43:41[22m [36m[1m[vite][22m[39m [34m[2m(rsc)[22m[39m connected.
+[2m13:43:55[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m connected.
+[2m13:53:01[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/i18n/LocaleContext.tsx[22m
+[2m13:53:01[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/@fs/C:/Users/amartinho/Documents/open-wars/hera/i18n/LocaleContext.tsx[22m Could not Fast Refresh ("Context" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m13:53:01[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/content/playground/ClientScope.tsx[22m

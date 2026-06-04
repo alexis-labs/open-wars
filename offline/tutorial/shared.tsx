@@ -1,5 +1,10 @@
 import CharacterMessage from '@deities/apollo/CharacterMessage.tsx';
-import { encodeEffects, type Effects } from '@deities/apollo/Effects.tsx';
+import {
+  decodeEffects,
+  encodeEffects,
+  type Effects,
+  type EncodedEffects,
+} from '@deities/apollo/Effects.tsx';
 import toSlug from '@deities/apollo/lib/toSlug.tsx';
 import { Factory, HQ, House } from '@deities/athena/info/Building.tsx';
 import { Forest, Mountain, Plain, Street } from '@deities/athena/info/Tile.tsx';
@@ -158,6 +163,10 @@ export function standardTeams(playerFunds = 0) {
       ],
     },
   ];
+}
+
+export function effectsFromEncoded(encoded: EncodedEffects): Effects {
+  return decodeEffects(encoded);
 }
 
 export function createTutorialEffects(

@@ -28,17 +28,18 @@ export function getCurrentFonts() {
 
 export async function createLocaleContext(props?: Partial<LocaleContextProps>) {
   const translations: TranslationDictionary = {};
+  const loadLocale = props?.loadLocale || (() => Promise.resolve({}));
   const { getLocale, setLocale } = setupLocaleContext({
     availableLanguages: AvailableLanguages,
     clientLocales: [Storage.get(storageKey) || '', navigator.language, ...navigator.languages],
-    loadLocale: () => Promise.resolve({}),
+    loadLocale,
     translations,
     ...props,
   });
 
   const locale = getLocale();
-  if (locale && locale !== 'en_US' && props?.loadLocale) {
-    translations[locale] = await props?.loadLocale(locale);
+  if (locale && locale !== 'en_US') {
+    translations[locale] = await loadLocale(locale);
     injectCharacterNameTranslation(UnitInfo, CharacterMap);
   }
 
