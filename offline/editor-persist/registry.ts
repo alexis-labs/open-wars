@@ -17,9 +17,13 @@ function getRepoRoot(): string {
 }
 
 const repoRoot = getRepoRoot();
+import { act1Missions } from '../act1/missions.tsx';
 import { act1MapIds } from '../act1/shared.tsx';
+import { act2Missions } from '../act2/missions.tsx';
 import { act2MapIds } from '../act2/shared.tsx';
+import { act3Missions } from '../act3/missions.tsx';
 import { act3MapIds } from '../act3/shared.tsx';
+import { tutorialMissions } from '../tutorial/missions.tsx';
 import { LEGACY_CAMPAIGN_1_MAP_ID, tutorialMapIds } from '../tutorial/shared.tsx';
 
 export type MissionRegistryEntry = Readonly<{
@@ -112,4 +116,23 @@ export function getMissionRegistryEntry(mapId: string): MissionRegistryEntry | n
   }
 
   return null;
+}
+
+export function getMissionRegistryEntryByMapName(mapName: string): MissionRegistryEntry | null {
+  const missions = [
+    ...tutorialMissions,
+    ...act1Missions,
+    ...act2Missions,
+    ...act3Missions,
+  ];
+
+  const mission = missions.find((entry) => entry.mapName === mapName);
+  return mission ? getMissionRegistryEntry(mission.id) : null;
+}
+
+export function resolveMissionRegistryEntry(
+  mapId: string,
+  mapName: string,
+): MissionRegistryEntry | null {
+  return getMissionRegistryEntry(mapId) || getMissionRegistryEntryByMapName(mapName);
 }

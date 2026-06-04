@@ -6,7 +6,7 @@ import {
   type EncodedEffects,
 } from '@deities/apollo/Effects.tsx';
 import toSlug from '@deities/apollo/lib/toSlug.tsx';
-import { Factory, HQ, House } from '@deities/athena/info/Building.tsx';
+import { DestroyedHouse, Factory, HQ, House } from '@deities/athena/info/Building.tsx';
 import { Forest, Mountain, Plain, Street } from '@deities/athena/info/Tile.tsx';
 import { Artillery, Infantry, Jeep, Pioneer } from '@deities/athena/info/Unit.tsx';
 import withModifiers from '@deities/athena/lib/withModifiers.tsx';
@@ -269,4 +269,4 @@ export function isOfficialTutorialMap(mapObject: MapObject) {
   );
 }
 
-export { Factory, HQ, House, Pioneer, Infantry, Artillery, Jeep };
+export { DestroyedHouse, Factory, HQ, House, Pioneer, Infantry, Artillery, Jeep };

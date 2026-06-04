@@ -1,16 +1,16 @@
 import { type MapObject } from '@deities/hera/editor/Types.tsx';
-import { isOfficialEditorMapId } from './editor-persist/officialMapIds.ts';
+import { isOfficialCampaignMap } from './campaignCatalog.tsx';
 
 export async function persistMapToProject(
   mapObject: MapObject,
 ): Promise<{ error?: string; ok: boolean }> {
   if (!import.meta.env.DEV) {
-    return { error: 'Project save only works in dev mode.', ok: false };
+    return { error: 'Project save only works with `pnpm --dir offline dev`.', ok: false };
   }
 
-  if (!isOfficialEditorMapId(mapObject.id)) {
+  if (!isOfficialCampaignMap(mapObject)) {
     return {
-      error: 'Only official campaign maps can be saved to the project.',
+      error: 'Only Boot Camp / Act 1–3 campaign maps are written to the repo.',
       ok: false,
     };
   }

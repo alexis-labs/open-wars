@@ -23,7 +23,59 @@ function getRepoRoot(): string {
 const repoRoot = getRepoRoot();
 import { generateEffectsCode } from './generateEffects.ts';
 import { generateMapConfig } from './generateMapConfig.ts';
-import { getMissionRegistryEntry, type MissionRegistryEntry } from './registry.ts';
+import { resolveMissionRegistryEntry, type MissionRegistryEntry } from './registry.ts';
+import { buildingIdToSymbol, unitIdToSymbol } from './symbolMaps.ts';
+
+const buildingSymbolNames = new Set(buildingIdToSymbol.values());
+const unitSymbolNames = new Set(unitIdToSymbol.values());
+
+function getSharedModuleSpecifier(entry: MissionRegistryEntry) {
+  return entry.act === 'tutorial' ? './shared.tsx' : '../tutorial/shared.tsx';
+}
+
+function collectIdSymbols(code: string) {
+  const symbols = new Set<string>();
+  for (const match of code.matchAll(/\b([A-Z][A-Za-z0-9]*)\.id\b/g)) {
+    symbols.add(match[1]!);
+  }
+  return symbols;
+}
+
+function ensureCodegenSymbolImports(
+  sourceFile: import('ts-morph').SourceFile,
+  code: string,
+  entry: MissionRegistryEntry,
+) {
+  const sharedModule = getSharedModuleSpecifier(entry);
+
+  for (const symbol of collectIdSymbols(code)) {
+    if (buildingSymbolNames.has(symbol)) {
+      ensureNamedImport(sourceFile, sharedModule, symbol);
+      continue;
+    }
+
+    if (!unitSymbolNames.has(symbol)) {
+      continue;
+    }
+
+    const unitImport = sourceFile.getImportDeclaration((declaration) =>
+      declaration.getModuleSpecifierValue().includes('Unit.tsx'),
+    );
+
+    if (unitImport) {
+      if (
+        !unitImport
+          .getNamedImports()
+          .some((specifier) => specifier.getName() === symbol)
+      ) {
+        unitImport.addNamedImport(symbol);
+      }
+      continue;
+    }
+
+    ensureNamedImport(sourceFile, sharedModule, symbol);
+  }
+}
 
 export type PersistEditorMapInput = Readonly<{
   effects: string;
@@ -139,14 +191,12 @@ export function patchMissionFile(
   }
 
   const mapConfigCode = generateMapConfig(map, entry);
+  const codegenBundle = `${mapConfigCode}\n${effectsCode}`;
+
+  ensureCodegenSymbolImports(sourceFile, codegenBundle, entry);
+
   if (mapConfigCode.includes(`${entry.tilesNamespace}.`)) {
-    const tilesModule =
-      entry.act === 'tutorial'
-        ? './shared.tsx'
-        : entry.act === 'act1'
-          ? '../tutorial/shared.tsx'
-          : './shared.tsx';
-    ensureNamedImport(sourceFile, tilesModule, entry.tilesNamespace);
+    ensureNamedImport(sourceFile, getSharedModuleSpecifier(entry), entry.tilesNamespace);
   }
 
   replaceObjectProperty(initializer, 'map', mapConfigCode);
@@ -185,10 +235,10 @@ function formatMissionFile(missionsFile: string) {
 }
 
 export function persistEditorMapToProject(input: PersistEditorMapInput): void {
-  const entry = getMissionRegistryEntry(input.id);
+  const entry = resolveMissionRegistryEntry(input.id, input.mapName);
   if (!entry) {
     throw new Error(
-      `Map '${input.id}' is not an official campaign map. Only tutorial and act maps can be saved to the project.`,
+      `Map '${input.id}' is not linked to a campaign mission in offline/*/missions.tsx.`,
     );
   }
 

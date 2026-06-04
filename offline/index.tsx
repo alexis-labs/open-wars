@@ -2,7 +2,6 @@ import { decodeEffects, type Effects, encodeEffects } from '@deities/apollo/Effe
 import dateNow from '@deities/apollo/lib/dateNow.tsx';
 import mapWithAIPlayers from '@deities/apollo/lib/mapWithAIPlayers.tsx';
 import toSlug from '@deities/apollo/lib/toSlug.tsx';
-import { type MapMetadata } from '@deities/apollo/MapMetadata.tsx';
 import { prepareSprites } from '@deities/art/Sprites.tsx';
 import { Pioneer } from '@deities/athena/info/Unit.tsx';
 import startGame from '@deities/athena/lib/startGame.tsx';
@@ -58,7 +57,9 @@ import {
 } from './campaign1Map.tsx';
 import { getDefaultTutorialMap, needsOfficialCampaignReseed } from './tutorial/seed.tsx';
 import CampaignMenu from './CampaignMenu.tsx';
-import starterMap, { starterMapMetadata } from './starterMap.tsx';
+import { isOfficialCampaignMap } from './campaignCatalog.tsx';
+import createQuickPlaySkirmish from './createQuickPlaySkirmish.tsx';
+import { persistMapToProject } from './persistMapToProject.ts';
 
 const campaign1TutorialVersionKey = '::OpenWars::campaign-1-tutorial-version';
 
@@ -463,14 +464,32 @@ function OpenWarsApp() {
   }, []);
 
   const saveCreatedMap = useCallback(
-    (mapObject: MapObject, setSaveState: Parameters<MapCreateFunction>[1]) => {
+    (mapObject: MapObject, setSaveState?: Parameters<MapCreateFunction>[1]) => {
       const maps = upsertEditorMapObject(editorMapLibrary.maps, mapObject);
-      if (saveEditorMapObjects(maps, setSaveState)) {
-        setEditorMapLibrary({
-          current: mapObject,
-          maps,
-        });
+      if (!saveEditorMapObjects(maps, setSaveState)) {
+        return;
       }
+
+      setEditorMapLibrary({
+        current: mapObject,
+        maps,
+      });
+
+      if (!import.meta.env.DEV || !isOfficialCampaignMap(mapObject)) {
+        return;
+      }
+
+      void persistMapToProject(mapObject).then((result) => {
+        if (result.ok) {
+          setSaveState?.({
+            message: 'Saved to browser and project (missions.tsx).',
+          });
+        } else if (result.error) {
+          setSaveState?.({
+            message: `Saved in browser. ${result.error}`,
+          });
+        }
+      });
     },
     [editorMapLibrary.maps],
   );
@@ -680,15 +699,18 @@ function LocalSkirmish({
   const [renderKey, setRenderKey] = useState(0);
   const zoom = useScale();
   const gameScale = useResponsiveGameScale(zoom);
-  const [map, metadata] = useMemo(() => createStarterSkirmish(), []);
+  const [map, metadata] = useMemo(
+    () => (initialSavedMap ? [initialSavedMap, null] : createQuickPlaySkirmish()),
+    [initialSavedMap],
+  );
   const [game, setGame] = useState<ClientGame>(() =>
     createLocalClientGame(
       initialSavedMap || map,
-      initialEffects || metadata.effects,
+      initialEffects || metadata?.effects,
       initialSavedMap ? shouldStartInitialMap : true,
     ),
   );
-  useBiomeMusic(game.state.config.biome, initialSavedMap ? undefined : metadata.tags);
+  useBiomeMusic(game.state.config.biome, metadata?.tags);
   usePlayMusic(game.state.config.biome);
   const onAction = useClientGameAction(game, setGame);
   const playerDetails = useClientGamePlayerDetails(game.state, localPlayer);
@@ -842,10 +864,6 @@ function useResponsiveGameScale(scale: number) {
   }
 
   return scale;
-}
-
-function createStarterSkirmish(): [MapData, MapMetadata] {
-  return [starterMap, starterMapMetadata];
 }
 
 function isHumanVictory(game: ClientGame) {
