@@ -5,8 +5,6 @@ import toSlug from '@deities/apollo/lib/toSlug.tsx';
 import { prepareSprites } from '@deities/art/Sprites.tsx';
 import { Pioneer } from '@deities/athena/info/Unit.tsx';
 import startGame from '@deities/athena/lib/startGame.tsx';
-import updatePlayer from '@deities/athena/lib/updatePlayer.tsx';
-import { HumanPlayer } from '@deities/athena/map/Player.tsx';
 import MapData from '@deities/athena/MapData.tsx';
 import { MusicContext, useBiomeMusic, usePlayMusic } from '@deities/hera/audio/Music.tsx';
 import MapEditor from '@deities/hera/editor/MapEditor.tsx';
@@ -51,15 +49,32 @@ import {
 } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
-import {
-  campaign1TutorialVersion,
-  ensureCampaign1TutorialMap,
-} from './campaign1Map.tsx';
-import { getDefaultTutorialMap, needsOfficialCampaignReseed } from './tutorial/seed.tsx';
-import CampaignMenu from './CampaignMenu.tsx';
+import { campaign1TutorialVersion, ensureCampaign1TutorialMap } from './campaign1Map.tsx';
 import { isOfficialCampaignMap } from './campaignCatalog.tsx';
+import CampaignMenu from './CampaignMenu.tsx';
 import createQuickPlaySkirmish from './createQuickPlaySkirmish.tsx';
 import { persistMapToProject } from './persistMapToProject.ts';
+import {
+  advancePastNonBattleNode,
+  advanceRunAfterReward,
+  applyReward,
+  applyRunPlayerBonuses,
+  applyRunPlayerIdentity,
+  createInitialRoguelikeRun,
+  createRoguelikeCampaignBattle,
+  describeRunUnlocks,
+  formatNodeType,
+  generateRewardChoices,
+  isBattleNode,
+  normalizeMetaProgression,
+  normalizeRunState,
+  recordRunFinished,
+  resolveNonBattleNode,
+  type RewardCard,
+  type RoguelikeMetaProgression,
+  type RoguelikeRunState,
+} from './roguelikeCampaign.tsx';
+import { getDefaultTutorialMap, needsOfficialCampaignReseed } from './tutorial/seed.tsx';
 
 const campaign1TutorialVersionKey = '::OpenWars::campaign-1-tutorial-version';
 
@@ -79,6 +94,8 @@ const savedEditorMapKey = '::OpenWars::editor-map';
 const fullscreenPreferenceKey = '::OpenWars::fullscreen';
 const savedGameKey = '::OpenWars::saved-game';
 const savedGameVersion = 1;
+const savedRoguelikeMetaKey = '::OpenWars::roguelike-meta';
+const savedRoguelikeRunKey = '::OpenWars::roguelike-run';
 const soundPreferenceKey = '::OpenWars::sound-enabled';
 const campaignCompletedMapsKey = '::OpenWars::campaign-completed-maps';
 
@@ -252,6 +269,8 @@ function OpenWarsApp() {
   const [completedCampaignMapIds, setCompletedCampaignMapIds] = useState(() =>
     loadCompletedCampaignMapIds(),
   );
+  const [roguelikeMeta, setRoguelikeMeta] = useState(loadRoguelikeMeta);
+  const [roguelikeRun, setRoguelikeRun] = useState<RoguelikeRunState | null>(loadRoguelikeRun);
   const [isBooting, setIsBooting] = useState(true);
 
   useEffect(() => {
@@ -280,14 +299,17 @@ function OpenWarsApp() {
     enableAudioFromUserGesture('UI/Start');
     setExitMessage(null);
     setFullscreenMessage(null);
+    const run = createInitialRoguelikeRun(roguelikeMeta);
     setSavedMap(null);
     setSavedEffects(null);
     setShouldStartSavedMap(false);
     setActiveCampaignMapId(null);
+    setRoguelikeRun(run);
+    saveRoguelikeRun(run);
     setHasSavedGame(false);
     localStorage.removeItem(savedGameKey);
     setScreen('playing');
-  }, []);
+  }, [roguelikeMeta]);
 
   const continueGame = useCallback(() => {
     enableAudioFromUserGesture('UI/Start');
@@ -296,6 +318,7 @@ function OpenWarsApp() {
 
     const savedGame = loadSavedGame();
     if (savedGame) {
+      setRoguelikeRun(loadRoguelikeRun());
       setSavedMap(savedGame.map);
       setSavedEffects(savedGame.effects);
       setShouldStartSavedMap(false);
@@ -314,8 +337,10 @@ function OpenWarsApp() {
     setSavedMap(null);
     setSavedEffects(null);
     setShouldStartSavedMap(false);
+    setRoguelikeRun(null);
     setHasSavedGame(false);
     localStorage.removeItem(savedGameKey);
+    localStorage.removeItem(savedRoguelikeRunKey);
   }, []);
 
   const openMapEditor = useCallback(() => {
@@ -397,6 +422,33 @@ function OpenWarsApp() {
   const markSaved = useCallback(() => {
     setHasSavedGame(true);
   }, []);
+
+  const updateRoguelikeRun = useCallback((run: RoguelikeRunState) => {
+    setRoguelikeRun(run);
+    saveRoguelikeRun(run);
+  }, []);
+
+  const finishRoguelikeRun = useCallback(
+    (run: RoguelikeRunState, didWin: boolean) => {
+      const nextMeta = recordRunFinished(roguelikeMeta, run, didWin);
+      setRoguelikeMeta(nextMeta);
+      saveRoguelikeMeta(nextMeta);
+      setRoguelikeRun(null);
+      setSavedMap(null);
+      setSavedEffects(null);
+      setShouldStartSavedMap(false);
+      setHasSavedGame(false);
+      localStorage.removeItem(savedGameKey);
+      localStorage.removeItem(savedRoguelikeRunKey);
+      setExitMessage(
+        didWin
+          ? `Run complete. Meta level ${nextMeta.level}, ${nextMeta.experience} XP.`
+          : `Run ended at battle ${run.battle}. Meta level ${nextMeta.level}, ${nextMeta.experience} XP.`,
+      );
+      setScreen('menu');
+    },
+    [roguelikeMeta],
+  );
 
   const exit = useCallback(() => {
     setExitMessage(null);
@@ -559,7 +611,10 @@ function OpenWarsApp() {
         initialSavedMap={savedMap}
         onCampaignVictory={markCampaignMapCompleted}
         onExitToMenu={backToMenu}
+        onRoguelikeRunFinished={finishRoguelikeRun}
+        onRoguelikeRunUpdate={updateRoguelikeRun}
         onSaved={markSaved}
+        roguelikeRun={roguelikeRun}
         shouldStartInitialMap={shouldStartSavedMap}
       />
     );
@@ -631,8 +686,11 @@ function OpenWarsApp() {
               </button>
               <p className={menuHint}>Edit available sprite sheets and local replacements.</p>
               <button className={menuButton} onClick={startNewGame}>
-                Quick play
+                Roguelike Campaign
               </button>
+              <p className={menuHint}>
+                Level {roguelikeMeta.level} - best battle {roguelikeMeta.bestBattle}
+              </p>
               <button className={menuButton} onClick={openCampaign}>
                 Campaign
               </button>
@@ -685,7 +743,10 @@ function LocalSkirmish({
   initialSavedMap,
   onCampaignVictory,
   onExitToMenu,
+  onRoguelikeRunFinished,
+  onRoguelikeRunUpdate,
   onSaved,
+  roguelikeRun,
   shouldStartInitialMap,
 }: {
   campaignMapId: string | null;
@@ -693,23 +754,34 @@ function LocalSkirmish({
   initialSavedMap: MapData | null;
   onCampaignVictory?: (mapId: string) => void;
   onExitToMenu: () => void;
+  onRoguelikeRunFinished: (run: RoguelikeRunState, didWin: boolean) => void;
+  onRoguelikeRunUpdate: (run: RoguelikeRunState) => void;
   onSaved: () => void;
+  roguelikeRun: RoguelikeRunState | null;
   shouldStartInitialMap: boolean;
 }) {
   const [renderKey, setRenderKey] = useState(0);
   const zoom = useScale();
   const gameScale = useResponsiveGameScale(zoom);
   const [map, metadata] = useMemo(
-    () => (initialSavedMap ? [initialSavedMap, null] : createQuickPlaySkirmish()),
-    [initialSavedMap],
+    () =>
+      initialSavedMap
+        ? [initialSavedMap, null]
+        : roguelikeRun
+          ? createRoguelikeCampaignBattle(roguelikeRun)
+          : createQuickPlaySkirmish(),
+    [initialSavedMap, roguelikeRun],
   );
   const [game, setGame] = useState<ClientGame>(() =>
     createLocalClientGame(
       initialSavedMap || map,
       initialEffects || metadata?.effects,
       initialSavedMap ? shouldStartInitialMap : true,
+      roguelikeRun,
     ),
   );
+  const [rewardChoices, setRewardChoices] = useState<ReadonlyArray<RewardCard> | null>(null);
+  const [resolvedNodeRun, setResolvedNodeRun] = useState<RoguelikeRunState | null>(null);
   useBiomeMusic(game.state.config.biome, metadata?.tags);
   usePlayMusic(game.state.config.biome);
   const onAction = useClientGameAction(game, setGame);
@@ -722,9 +794,14 @@ function LocalSkirmish({
   const victoryRecorded = useRef(false);
 
   useEffect(() => {
-    saveMap(game.state, game.effects);
-    onSaved();
-  }, [game.effects, game.state, onSaved]);
+    if (!game.ended) {
+      saveMap(game.state, game.effects);
+      if (roguelikeRun) {
+        saveRoguelikeRun(roguelikeRun);
+      }
+      onSaved();
+    }
+  }, [game.effects, game.ended, game.state, onSaved, roguelikeRun]);
 
   useEffect(() => {
     if (campaignMapId && onCampaignVictory && !victoryRecorded.current && isHumanVictory(game)) {
@@ -733,11 +810,69 @@ function LocalSkirmish({
     }
   }, [campaignMapId, game, onCampaignVictory]);
 
+  useEffect(() => {
+    if (!roguelikeRun || victoryRecorded.current || !game.ended) {
+      return;
+    }
+
+    victoryRecorded.current = true;
+    if (isHumanVictory(game)) {
+      setRewardChoices(generateRewardChoices(roguelikeRun));
+    } else {
+      onRoguelikeRunFinished(
+        {
+          ...roguelikeRun,
+          status: 'defeat',
+        },
+        false,
+      );
+    }
+  }, [game, onRoguelikeRunFinished, roguelikeRun]);
+
+  const startRoguelikeBattle = useCallback(
+    (run: RoguelikeRunState) => {
+      const battleRun = advancePastNonBattleNode(run);
+      const [nextMap, nextMetadata] = createRoguelikeCampaignBattle(battleRun);
+      onRoguelikeRunUpdate(battleRun);
+      victoryRecorded.current = false;
+      setRewardChoices(null);
+      setResolvedNodeRun(null);
+      setGame(createLocalClientGame(nextMap, nextMetadata.effects, true, battleRun));
+      setRenderKey((key) => key + 1);
+    },
+    [onRoguelikeRunUpdate],
+  );
+
+  const chooseReward = useCallback(
+    (reward: RewardCard) => {
+      if (!roguelikeRun) {
+        return;
+      }
+
+      const advancedRun = advanceRunAfterReward(applyReward(roguelikeRun, reward));
+      if (advancedRun.status === 'victory') {
+        onRoguelikeRunFinished(advancedRun, true);
+        return;
+      }
+
+      if (isBattleNode(advancedRun.node)) {
+        startRoguelikeBattle(advancedRun);
+      } else {
+        const resolvedRun = resolveNonBattleNode(advancedRun);
+        onRoguelikeRunUpdate(resolvedRun);
+        setRewardChoices(null);
+        setResolvedNodeRun(resolvedRun);
+      }
+    },
+    [onRoguelikeRunFinished, onRoguelikeRunUpdate, roguelikeRun, startRoguelikeBattle],
+  );
+
   return (
     <main className={gameScreen}>
       <button className={inGameMenuButton} onClick={onExitToMenu}>
         Menu
       </button>
+      {roguelikeRun ? <RunStatus run={roguelikeRun} /> : null}
       <GameMap
         autoPanning
         currentUserId={localPlayer.id}
@@ -774,8 +909,114 @@ function LocalSkirmish({
           );
         }}
       </GameMap>
+      {rewardChoices && roguelikeRun ? (
+        <RewardSelection choices={rewardChoices} onChoose={chooseReward} run={roguelikeRun} />
+      ) : null}
+      {resolvedNodeRun ? (
+        <NodeResolution
+          run={resolvedNodeRun}
+          onContinue={() => startRoguelikeBattle(resolvedNodeRun)}
+        />
+      ) : null}
     </main>
   );
+}
+
+function RunStatus({ run }: { run: RoguelikeRunState }) {
+  return (
+    <aside className={runStatus}>
+      <strong>
+        {formatNodeType(run.node)} {run.battle}/{run.battleLimit}
+      </strong>
+      <span>{describeRunUnlocks(run)}</span>
+    </aside>
+  );
+}
+
+function RewardSelection({
+  choices,
+  onChoose,
+  run,
+}: {
+  choices: ReadonlyArray<RewardCard>;
+  onChoose: (reward: RewardCard) => void;
+  run: RoguelikeRunState;
+}) {
+  return (
+    <div className={campaignOverlay}>
+      <section className={campaignPanel}>
+        <p className={eyebrow}>Victory</p>
+        <h2 className={overlayTitle}>Choose a reward</h2>
+        <p className={statusMessage}>Battle {run.battle} cleared. Pick one card for this run.</p>
+        <div className={rewardGrid}>
+          {choices.map((reward) => (
+            <button
+              className={cx(rewardCard, rarityClass(reward.rarity))}
+              key={reward.id}
+              onClick={() => onChoose(reward)}
+            >
+              <span className={rewardRarity}>{reward.rarity}</span>
+              <strong>{reward.title}</strong>
+              <span>{reward.description}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function NodeResolution({ onContinue, run }: { onContinue: () => void; run: RoguelikeRunState }) {
+  return (
+    <div className={campaignOverlay}>
+      <section className={campaignPanel}>
+        <p className={eyebrow}>{formatNodeType(run.node)}</p>
+        <h2 className={overlayTitle}>Campaign progress</h2>
+        <p className={statusMessage}>{getNodeResolutionText(run)}</p>
+        <button className={menuButton} onClick={onContinue}>
+          Continue
+        </button>
+      </section>
+    </div>
+  );
+}
+
+function getNodeResolutionText(run: RoguelikeRunState) {
+  switch (run.node) {
+    case 'event':
+      return 'A battlefield opportunity adds extra funds to future deployments.';
+    case 'rest':
+      return 'Your forces recover momentum and start future battles with more charge.';
+    case 'shop':
+      return 'A field trader converts spare supplies into extra starting funds.';
+    case 'treasure':
+      return 'A hidden cache increases your starting treasury for the rest of the run.';
+    case 'boss':
+    case 'elite':
+    case 'normal':
+      return `${formatNodeType(run.node)} awaits.`;
+    default: {
+      run.node satisfies never;
+      return 'The route continues.';
+    }
+  }
+}
+
+function rarityClass(rarity: RewardCard['rarity']) {
+  switch (rarity) {
+    case 'common':
+      return rewardCommon;
+    case 'rare':
+      return rewardRare;
+    case 'epic':
+      return rewardEpic;
+    case 'legendary':
+      return rewardLegendary;
+    default: {
+      rarity satisfies never;
+      return rewardCommon;
+    }
+  }
 }
 
 function LocalMapEditor({
@@ -907,9 +1148,10 @@ function createLocalClientGame(
   map: MapData,
   initialEffects: Effects | null | undefined,
   shouldStart: boolean,
+  roguelikeRun?: RoguelikeRunState | null,
 ): ClientGame {
   const effects = initialEffects || new Map();
-  const state = shouldStart ? prepareLocalMap(map) : map;
+  const state = shouldStart ? prepareLocalMap(map, roguelikeRun) : map;
   const lastAction = shouldStart ? null : startAction;
   return {
     effects,
@@ -920,14 +1162,10 @@ function createLocalClientGame(
   };
 }
 
-function prepareLocalMap(map: MapData) {
-  return startGame(
-    mapWithAIPlayers(
-      map.copy({
-        teams: updatePlayer(map.teams, HumanPlayer.from(map.getCurrentPlayer(), localPlayer.id)),
-      }),
-    ),
-  );
+function prepareLocalMap(map: MapData, roguelikeRun: RoguelikeRunState | null = null) {
+  const preparedMap = mapWithAIPlayers(applyRunPlayerIdentity(map, localPlayer.id, roguelikeRun));
+  const startedMap = startGame(preparedMap);
+  return roguelikeRun ? applyRunPlayerBonuses(startedMap, roguelikeRun) : startedMap;
 }
 
 function loadSavedGame(): LoadedSavedGame | null {
@@ -969,6 +1207,48 @@ function saveMap(map: MapData, effects: Effects) {
     );
   } catch {
     // Storage can fail in private browsing or under quota pressure. The game remains playable.
+  }
+}
+
+function loadRoguelikeRun(): RoguelikeRunState | null {
+  const json = localStorage.getItem(savedRoguelikeRunKey);
+  if (!json) {
+    return null;
+  }
+
+  try {
+    return normalizeRunState(JSON.parse(json) as RoguelikeRunState);
+  } catch {
+    return null;
+  }
+}
+
+function saveRoguelikeRun(run: RoguelikeRunState) {
+  try {
+    localStorage.setItem(savedRoguelikeRunKey, JSON.stringify(run));
+  } catch {
+    // Storage can fail in private browsing or under quota pressure.
+  }
+}
+
+function loadRoguelikeMeta(): RoguelikeMetaProgression {
+  const json = localStorage.getItem(savedRoguelikeMetaKey);
+  if (!json) {
+    return normalizeMetaProgression(null);
+  }
+
+  try {
+    return normalizeMetaProgression(JSON.parse(json) as RoguelikeMetaProgression);
+  } catch {
+    return normalizeMetaProgression(null);
+  }
+}
+
+function saveRoguelikeMeta(meta: RoguelikeMetaProgression) {
+  try {
+    localStorage.setItem(savedRoguelikeMetaKey, JSON.stringify(meta));
+  } catch {
+    // Storage can fail in private browsing or under quota pressure.
   }
 }
 
@@ -1039,7 +1319,7 @@ function loadSavedEditorMapLibrary(): EditorMapLibrary {
     localStorage.setItem(campaign1TutorialVersionKey, String(campaign1TutorialVersion));
   }
 
-  const campaign1Map = getDefaultTutorialMap(maps);
+  const campaign1Map = getDefaultTutorialMap(maps) as MapObject | null;
 
   return {
     current: campaign1Map || maps[0] || null,
@@ -1107,17 +1387,6 @@ function decodeEditorEffects(effects: string): Effects | null {
     return decodeEffects(JSON.parse(effects));
   } catch {
     return null;
-  }
-}
-
-function getEditorMapSummary(mapObject: MapObject) {
-  try {
-    const map = MapData.fromJSON(mapObject.state);
-    return map
-      ? `${map.size.width}x${map.size.height} - ${map.active.length} players`
-      : 'Unavailable';
-  } catch {
-    return 'Unavailable';
   }
 }
 
@@ -1263,37 +1532,6 @@ const secondaryActions = css`
   justify-content: center;
 `;
 
-const createdMapList = css`
-  display: grid;
-  gap: 10px;
-`;
-
-const createdMapButton = css`
-  align-items: center;
-  display: grid;
-  gap: 4px;
-  justify-items: center;
-`;
-
-const createdMapMeta = css`
-  color: #697889;
-  font-size: 14px;
-`;
-
-const createdMapTitle = css`
-  align-items: center;
-  display: inline-flex;
-  gap: 8px;
-  justify-content: center;
-`;
-
-const campaignCompletedCheck = css`
-  color: #2f8f46;
-  font-size: 18px;
-  font-weight: bold;
-  line-height: 1;
-`;
-
 const menuHint = css`
   color: #586575;
   font-size: 14px;
@@ -1399,6 +1637,116 @@ const gameScreen = css`
   overflow: hidden;
   padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
   position: relative;
+`;
+
+const runStatus = css`
+  background: rgba(249, 251, 243, 0.92);
+  color: #1f2933;
+  display: grid;
+  font-size: 14px;
+  gap: 4px;
+  left: max(12px, env(safe-area-inset-left));
+  line-height: 1.25;
+  max-width: min(320px, calc(100vw - 128px));
+  padding: 10px 12px;
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  z-index: 20;
+`;
+
+const campaignOverlay = css`
+  align-items: center;
+  background: rgba(9, 14, 20, 0.58);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+  position: fixed;
+  z-index: 30;
+`;
+
+const campaignPanel = css`
+  background: rgba(245, 247, 241, 0.96);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36);
+  color: #1f2933;
+  display: grid;
+  gap: 16px;
+  max-height: calc(100vh - 48px);
+  max-width: 760px;
+  overflow: auto;
+  padding: 24px;
+  text-align: center;
+  width: min(100%, 760px);
+`;
+
+const overlayTitle = css`
+  color: #1f2933;
+  font-family: Athena, ui-sans-serif, system-ui, sans-serif;
+  font-size: 40px;
+  line-height: 1;
+  margin: 0;
+`;
+
+const rewardGrid = css`
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  @media (max-width: 680px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const rewardCard = css`
+  -webkit-user-drag: none;
+  background: #ffffff;
+  border: 0;
+  color: #1f2933;
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  font-size: 15px;
+  gap: 10px;
+  line-height: 1.3;
+  min-height: 190px;
+  padding: 16px;
+  text-align: left;
+  transition:
+    background-color 150ms ease,
+    transform 150ms ease;
+  user-select: none;
+
+  strong {
+    font-size: 22px;
+    line-height: 1.05;
+  }
+
+  &:hover {
+    background: #f9fbf3;
+    transform: translateY(-2px);
+  }
+`;
+
+const rewardRarity = css`
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+`;
+
+const rewardCommon = css`
+  border-top: 6px solid #697889;
+`;
+
+const rewardRare = css`
+  border-top: 6px solid #0c6fa5;
+`;
+
+const rewardEpic = css`
+  border-top: 6px solid #7a4fb3;
+`;
+
+const rewardLegendary = css`
+  border-top: 6px solid #b06c20;
 `;
 
 const editorScreen = css`
