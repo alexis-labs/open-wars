@@ -1,4 +1,8 @@
 import { EndTurnActionResponse } from '@deities/apollo/ActionResponse.tsx';
+import { PowerStation } from '@deities/athena/info/Building.tsx';
+import { PowerStationSkillMultiplier, Skill } from '@deities/athena/info/Skill.tsx';
+import calculateFunds from '@deities/athena/lib/calculateFunds.tsx';
+import updatePlayer from '@deities/athena/lib/updatePlayer.tsx';
 import applyBeginTurnStatusEffects, {
   isPoisoned,
 } from '@deities/athena/lib/applyBeginTurnStatusEffects.tsx';
@@ -8,13 +12,21 @@ import getUnitsByPositions from '@deities/athena/lib/getUnitsByPositions.tsx';
 import getUnitsToHeal, { HealEntry } from '@deities/athena/lib/getUnitsToHeal.tsx';
 import shouldRemoveUnit from '@deities/athena/lib/shouldRemoveUnit.tsx';
 import subtractFuel from '@deities/athena/lib/subtractFuel.tsx';
-import { HealAmount, MaxHealth } from '@deities/athena/map/Configuration.tsx';
+import {
+  HealAmount,
+  MaxHealth,
+  PowerStationMultiplier,
+} from '@deities/athena/map/Configuration.tsx';
+import Player from '@deities/athena/map/Player.tsx';
 import Unit from '@deities/athena/map/Unit.tsx';
-import Vector, { sortByVectorKey, sortVectors } from '@deities/athena/map/Vector.tsx';
+import Vector, { sortByVectorKey, sortVectors, szudzik } from '@deities/athena/map/Vector.tsx';
+import MapData from '@deities/athena/MapData.tsx';
+import { VisionT } from '@deities/athena/Vision.tsx';
+import sortBy from '@nkzw/core/sortBy.js';
 import ImmutableMap from '@nkzw/immutable-map';
 import { fbt } from 'fbtee';
 import NullBehavior from '../behavior/NullBehavior.tsx';
-import { Actions, State, StateToStateLike } from '../Types.tsx';
+import { Actions, State, StateLike, StateToStateLike } from '../Types.tsx';
 import animateHeal from './animateHeal.tsx';
 import animatePoison from './animatePoison.tsx';
 import animateSupply from './animateSupply.tsx';
@@ -25,6 +37,10 @@ import isFakeEndTurn from './isFakeEndTurn.tsx';
 
 const emptyUnitMap: ReadonlyMap<Vector, Unit> = new Map();
 const emptyUnitHealMap: ReadonlyMap<Vector, HealEntry> = new Map();
+const emptyIncomeEntries: ReadonlyArray<IncomeEntry> = [];
+
+type IncomeEntry = [position: Vector, amount: number];
+type RawIncomeEntry = [position: Vector, funds: number, visible: boolean];
 
 const partitionUnitsToHeal = (
   units: ImmutableMap<Vector, HealEntry>,
@@ -39,6 +55,115 @@ const partitionUnitsToHeal = (
     }
   }
   return [unitsToHeal, unitsToSupply];
+};
+
+const getIncomeEntries = (map: MapData, player: Player, vision: VisionT) => {
+  let powerStations = 0;
+  const entries: Array<RawIncomeEntry> = [];
+
+  for (const [vector, building] of map.buildings) {
+    if (map.matchesPlayer(player, building)) {
+      if (building.info === PowerStation) {
+        powerStations++;
+      }
+
+      const funds = building.info.configuration.funds;
+      if (funds > 0) {
+        entries.push([vector, funds, vision.isVisible(map, vector)]);
+      }
+    }
+  }
+
+  if (!entries.length) {
+    return emptyIncomeEntries;
+  }
+
+  const multiplier =
+    map.config.multiplier *
+    (1 +
+      (PowerStationMultiplier +
+        (player.skills.has(Skill.UnlockPowerStation) ? PowerStationSkillMultiplier : 0)) *
+        powerStations);
+
+  const sortedEntries = sortBy(entries, ([vector]) => szudzik(vector.x + 1, vector.y + 1));
+  const totalFunds = calculateFunds(map, player);
+  const roundedDownTotal = sortedEntries.reduce(
+    (sum, [, funds]) => sum + Math.floor(funds * multiplier),
+    0,
+  );
+  let remainingRounding = Math.max(0, totalFunds - roundedDownTotal);
+
+  return sortedEntries
+    .map(([vector, funds, visible]) => {
+      const amount = Math.floor(funds * multiplier) + (remainingRounding-- > 0 ? 1 : 0);
+      return visible ? ([vector, amount] as IncomeEntry) : null;
+    })
+    .filter((entry): entry is IncomeEntry => !!entry && entry[1] > 0);
+};
+
+const setPlayerFunds = (map: MapData, player: Player['id'], funds: number) =>
+  map.copy({
+    teams: updatePlayer(map.teams, map.getPlayer(player).setFunds(funds)),
+  });
+
+export const getEndTurnIncomeStartMap = (
+  map: MapData,
+  actionResponse: EndTurnActionResponse,
+) => {
+  if (isFakeEndTurn(actionResponse)) {
+    return map;
+  }
+
+  const player = map.getPlayer(actionResponse.next.player);
+  return setPlayerFunds(
+    map,
+    player.id,
+    Math.max(0, actionResponse.next.funds - calculateFunds(map, player)),
+  );
+};
+
+const incrementPlayerFunds = (map: MapData, player: Player['id'], amount: number) =>
+  map.copy({
+    teams: updatePlayer(map.teams, map.getPlayer(player).modifyFunds(amount)),
+  });
+
+const animateIncome = (
+  state: State,
+  incomeEntries: ReadonlyArray<IncomeEntry>,
+  player: Player['id'],
+  onComplete: StateToStateLike = (state) => state,
+): StateLike => {
+  const { animations } = state;
+  const [item, ...remainingItems] = incomeEntries;
+  const position = item?.[0];
+  return (
+    position
+      ? {
+          animations: animations.set(new AnimationKey(), {
+            onComplete: (state) => {
+              const map = incrementPlayerFunds(state.map, player, item[1]);
+              const nextState = {
+                ...state,
+                animations: state.animations.set(new AnimationKey(), {
+                  change: item[1],
+                  labelPrefix: '$',
+                  position,
+                  previousHealth: 0,
+                  type: 'health',
+                }),
+                map,
+              };
+              return {
+                map,
+                ...animateIncome(nextState, remainingItems, player, onComplete),
+              };
+            },
+            positions: [position],
+            type: 'scrollIntoView',
+          }),
+        }
+      : onComplete(state)
+  )!;
 };
 
 export default function addEndTurnAnimations(
@@ -102,6 +227,9 @@ export default function addEndTurnAnimations(
                   vision.isVisible(map, vector),
                 ),
               );
+          const incomeEntries = isFake
+            ? emptyIncomeEntries
+            : getIncomeEntries(map, map.getPlayer(nextPlayer), vision);
 
           const poisonedUnits = isFake
             ? emptyUnitMap
@@ -147,19 +275,24 @@ export default function addEndTurnAnimations(
               ? animatePoison(state, sortByVectorKey(poisonedUnits), removeUnits)
               : removeUnits(state);
 
-          await update(
+          const animateUnitRecovery = (state: State) =>
             animateHeal(state, sortByVectorKey(unitsToHeal), (state) =>
               unitsToSupply.size
                 ? animateSupply(state, sortByVectorKey(unitsToSupply), animatePoisonedUnits)
                 : animatePoisonedUnits(state),
-            ),
+            );
+
+          await update(
+            incomeEntries.length
+              ? animateIncome(state, incomeEntries, nextPlayer, animateUnitRecovery)
+              : animateUnitRecovery(state),
           );
         });
 
         return state;
       },
       player: nextPlayer,
-      sound: 'UI/Start',
+      sound: 'UI/EndTurn',
       text: String(
         fbt(
           'Round ' +
@@ -172,6 +305,8 @@ export default function addEndTurnAnimations(
       type: 'banner',
     }),
     behavior: new NullBehavior(),
-    map: isFake ? state.map : state.map.recover(currentPlayer),
+    map: isFake
+      ? state.map
+      : getEndTurnIncomeStartMap(state.map.recover(currentPlayer), actionResponse),
   };
 }

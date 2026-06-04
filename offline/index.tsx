@@ -3,10 +3,16 @@ import dateNow from '@deities/apollo/lib/dateNow.tsx';
 import mapWithAIPlayers from '@deities/apollo/lib/mapWithAIPlayers.tsx';
 import toSlug from '@deities/apollo/lib/toSlug.tsx';
 import { prepareSprites } from '@deities/art/Sprites.tsx';
-import { Pioneer } from '@deities/athena/info/Unit.tsx';
+import { getBuildingInfo } from '@deities/athena/info/Building.tsx';
+import { Plain } from '@deities/athena/info/Tile.tsx';
+import { getUnitInfo, Pioneer } from '@deities/athena/info/Unit.tsx';
 import startGame from '@deities/athena/lib/startGame.tsx';
+import { AnimationConfig } from '@deities/athena/map/Configuration.tsx';
+import SpriteVector from '@deities/athena/map/SpriteVector.tsx';
 import MapData from '@deities/athena/MapData.tsx';
 import { MusicContext, useBiomeMusic, usePlayMusic } from '@deities/hera/audio/Music.tsx';
+import VolumeControl from '@deities/hera/audio/VolumeControl.tsx';
+import BuildingTile from '@deities/hera/Building.tsx';
 import MapEditor from '@deities/hera/editor/MapEditor.tsx';
 import SpriteEditor from '@deities/hera/editor/SpriteEditor.tsx';
 import {
@@ -20,8 +26,11 @@ import useClientGamePlayerDetails from '@deities/hera/hooks/useClientGamePlayerD
 import { HideContext } from '@deities/hera/hooks/useHide.tsx';
 import { type UserWithUnlocks } from '@deities/hera/hooks/useUserMap.tsx';
 import LocaleContext from '@deities/hera/i18n/LocaleContext.tsx';
+import Tick from '@deities/hera/Tick.tsx';
+import CurrentGameCard from '@deities/hera/ui/CurrentGameCard.tsx';
 import GameActions from '@deities/hera/ui/GameActions.tsx';
 import MapInfo from '@deities/hera/ui/MapInfo.tsx';
+import UnitTile from '@deities/hera/Unit.tsx';
 import type { ClientGame } from '@deities/hermes/game/toClientGame.tsx';
 import undoClientGame, { type UndoType } from '@deities/hermes/game/undo.tsx';
 import AudioPlayer from '@deities/ui/AudioPlayer.tsx';
@@ -654,8 +663,13 @@ function OpenWarsApp() {
   return (
     <main className={menuScreen}>
       <section className={menuCard}>
-        <p className={eyebrow}>Open Wars</p>
-        <h1 className={title}>{screen === 'options' ? 'Options' : 'Main Menu'}</h1>
+        <header className={menuHeader}>
+          <p className={eyebrow}>Open Wars</p>
+          <h1 className={title}>{screen === 'options' ? 'Options' : 'Main Menu'}</h1>
+          {screen === 'menu' ? (
+            <p className={menuSubtitle}>Local turn-based strategy for web and mobile.</p>
+          ) : null}
+        </header>
 
         {screen === 'options' ? (
           <>
@@ -665,6 +679,18 @@ function OpenWarsApp() {
                 <button className={cx(menuButton, smallButton)} onClick={toggleSound}>
                   {isSoundEnabled ? 'On' : 'Off'}
                 </button>
+              </div>
+              <div className={volumeOptionRow}>
+                <span>Master volume</span>
+                <VolumeControl showPauseButton={false} type="master" />
+              </div>
+              <div className={volumeOptionRow}>
+                <span>Effects volume</span>
+                <VolumeControl showPauseButton={false} type="sound" />
+              </div>
+              <div className={volumeOptionRow}>
+                <span>Music volume</span>
+                <VolumeControl showPauseButton={false} type="music" />
               </div>
               <div className={optionRow}>
                 <span>Fullscreen</span>
@@ -680,54 +706,75 @@ function OpenWarsApp() {
           </>
         ) : (
           <>
-            <div className={buttonStack}>
-              <button className={menuButton} onClick={openSpriteEditor}>
-                Sprite Editor
-              </button>
-              <p className={menuHint}>Edit available sprite sheets and local replacements.</p>
-              <button className={menuButton} onClick={startNewGame}>
-                Roguelike Campaign
-              </button>
-              <p className={menuHint}>
-                Level {roguelikeMeta.level} - best battle {roguelikeMeta.bestBattle}
-              </p>
-              <button className={menuButton} onClick={openCampaign}>
-                Campaign
-              </button>
-              <button className={menuButton} onClick={openMapEditor}>
-                Map editor
-              </button>
-              <p className={menuHint}>Create maps with objectives and story events.</p>
-              <button className={menuButton} onClick={openOptions}>
-                Options
-              </button>
-              <button className={cx(menuButton, exitButton)} onClick={exit}>
-                Exit
-              </button>
+            <div className={menuSections}>
+              <section className={menuSection}>
+                <p className={menuSectionLabel}>Play</p>
+                <div className={buttonStack}>
+                  <button className={cx(menuButton, menuButtonFeatured)} onClick={startNewGame}>
+                    Roguelike Campaign
+                  </button>
+                  <p className={menuMeta}>
+                    Meta level {roguelikeMeta.level} · best battle {roguelikeMeta.bestBattle}
+                  </p>
+                  <button className={menuButton} onClick={openCampaign}>
+                    Campaign
+                  </button>
+                </div>
+              </section>
+
+              <section className={menuSection}>
+                <p className={menuSectionLabel}>Create</p>
+                <div className={buttonStack}>
+                  <button className={menuButton} onClick={openMapEditor}>
+                    Map editor
+                  </button>
+                  <p className={menuHint}>Create maps with objectives and story events.</p>
+                  <button className={menuButton} onClick={openSpriteEditor}>
+                    Sprite Editor
+                  </button>
+                  <p className={menuHint}>Edit available sprite sheets and local replacements.</p>
+                </div>
+              </section>
+
+              <section className={menuSection}>
+                <p className={menuSectionLabel}>App</p>
+                <div className={buttonStack}>
+                  <button className={menuButton} onClick={openOptions}>
+                    Options
+                  </button>
+                  <button className={cx(menuButton, exitButton)} onClick={exit}>
+                    Exit
+                  </button>
+                </div>
+              </section>
             </div>
+
             {hasSavedGame || installPrompt || hasAppUpdate ? (
-              <div className={secondaryActions}>
-                {hasSavedGame ? (
-                  <button className={secondaryButton} onClick={continueGame}>
-                    Continue
-                  </button>
-                ) : null}
-                {hasSavedGame ? (
-                  <button className={cx(secondaryButton, dangerButton)} onClick={deleteSave}>
-                    Delete Save
-                  </button>
-                ) : null}
-                {installPrompt ? (
-                  <button className={secondaryButton} onClick={installApp}>
-                    Install App
-                  </button>
-                ) : null}
-                {hasAppUpdate ? (
-                  <button className={secondaryButton} onClick={updateApp}>
-                    Update App
-                  </button>
-                ) : null}
-              </div>
+              <>
+                <div className={menuDivider} />
+                <div className={secondaryActions}>
+                  {hasSavedGame ? (
+                    <button className={cx(secondaryButton, secondaryButtonAccent)} onClick={continueGame}>
+                      Continue
+                    </button>
+                  ) : null}
+                  {hasSavedGame ? (
+                    <button className={cx(secondaryButton, dangerButton)} onClick={deleteSave}>
+                      Delete Save
+                    </button>
+                  ) : null}
+                  {installPrompt ? (
+                    <button className={secondaryButton} onClick={installApp}>
+                      Install App
+                    </button>
+                  ) : null}
+                  {hasAppUpdate ? (
+                    <button className={secondaryButton} onClick={updateApp}>
+                      Update App
+                    </button>
+                  ) : null}
+                </div>
+              </>
             ) : null}
             {exitMessage ? <p className={statusMessage}>{exitMessage}</p> : null}
           </>
@@ -782,6 +829,7 @@ function LocalSkirmish({
   );
   const [rewardChoices, setRewardChoices] = useState<ReadonlyArray<RewardCard> | null>(null);
   const [resolvedNodeRun, setResolvedNodeRun] = useState<RoguelikeRunState | null>(null);
+  const gameUsers = useMemo(() => new Map([[localPlayer.id, localPlayer]]), []);
   useBiomeMusic(game.state.config.biome, metadata?.tags);
   usePlayMusic(game.state.config.biome);
   const onAction = useClientGameAction(game, setGame);
@@ -896,6 +944,20 @@ function LocalSkirmish({
           return (
             <>
               <MapInfo hide={hide} {...props} />
+              <CurrentGameCard
+                actions={actions}
+                animations={props.animations}
+                currentViewer={props.currentViewer}
+                fade={renderKey === 0}
+                gameInfoState={props.gameInfoState}
+                hide={hide}
+                inlineUI={props.inlineUI}
+                map={props.map}
+                timeout={null}
+                users={gameUsers}
+                vision={props.vision}
+                zIndex={props.zIndex}
+              />
               <GameActions
                 actions={actions}
                 canUndoAction
@@ -910,7 +972,12 @@ function LocalSkirmish({
         }}
       </GameMap>
       {rewardChoices && roguelikeRun ? (
-        <RewardSelection choices={rewardChoices} onChoose={chooseReward} run={roguelikeRun} />
+        <RewardSelection
+          biome={game.state.config.biome}
+          choices={rewardChoices}
+          onChoose={chooseReward}
+          run={roguelikeRun}
+        />
       ) : null}
       {resolvedNodeRun ? (
         <NodeResolution
@@ -934,10 +1001,12 @@ function RunStatus({ run }: { run: RoguelikeRunState }) {
 }
 
 function RewardSelection({
+  biome,
   choices,
   onChoose,
   run,
 }: {
+  biome: MapData['config']['biome'];
   choices: ReadonlyArray<RewardCard>;
   onChoose: (reward: RewardCard) => void;
   run: RoguelikeRunState;
@@ -956,14 +1025,60 @@ function RewardSelection({
               onClick={() => onChoose(reward)}
             >
               <span className={rewardRarity}>{reward.rarity}</span>
-              <strong>{reward.title}</strong>
-              <span>{reward.description}</span>
+              <RewardSprite biome={biome} reward={reward} />
+              <span className={rewardText}>
+                <strong>{reward.title}</strong>
+                <span>{reward.description}</span>
+              </span>
             </button>
           ))}
         </div>
       </section>
     </div>
   );
+}
+
+function RewardSprite({
+  biome,
+  reward,
+}: {
+  biome: MapData['config']['biome'];
+  reward: RewardCard;
+}) {
+  if (reward.unitId != null) {
+    const unitInfo = getUnitInfo(reward.unitId);
+    return unitInfo ? (
+      <span className={rewardSpriteFrame} aria-hidden>
+        <Tick animationConfig={AnimationConfig}>
+          <UnitTile
+            animationConfig={AnimationConfig}
+            biome={biome}
+            firstPlayerID={1}
+            size={40}
+            tile={Plain}
+            unit={unitInfo.create(1)}
+          />
+        </Tick>
+      </span>
+    ) : null;
+  }
+
+  if (reward.buildingId != null) {
+    const buildingInfo = getBuildingInfo(reward.buildingId);
+    return buildingInfo ? (
+      <span className={rewardSpriteFrame} aria-hidden>
+        <BuildingTile
+          animationConfig={AnimationConfig}
+          biome={biome}
+          building={buildingInfo.create(1)}
+          position={new SpriteVector(1, 1.55)}
+          size={40}
+        />
+      </span>
+    ) : null;
+  }
+
+  return null;
 }
 
 function NodeResolution({ onContinue, run }: { onContinue: () => void; run: RoguelikeRunState }) {
@@ -1490,24 +1605,45 @@ const menuScreen = css`
 
 const menuCard = css`
   align-items: stretch;
-  backdrop-filter: blur(6px);
-  background: rgba(245, 247, 241, 0.92);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(10px);
+  background: rgba(245, 247, 241, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  box-shadow:
+    0 28px 70px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  max-width: 380px;
-  padding: 28px;
+  gap: 22px;
+  margin: auto 0;
+  max-width: 420px;
+  padding: 30px 28px 28px;
   position: relative;
   text-align: center;
-  width: min(100%, 380px);
+  width: min(100%, 420px);
   z-index: 1;
+
+  &::before {
+    background: linear-gradient(90deg, #2f8f46, #0c6fa5 55%, #6fbf73);
+    content: '';
+    height: 4px;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+  }
+`;
+
+const menuHeader = css`
+  display: grid;
+  gap: 8px;
 `;
 
 const eyebrow = css`
   color: #586575;
   font-family: Athena, ui-sans-serif, system-ui, sans-serif;
-  font-size: 18px;
+  font-size: 16px;
+  letter-spacing: 0.12em;
   margin: 0;
   text-transform: uppercase;
 `;
@@ -1515,14 +1651,47 @@ const eyebrow = css`
 const title = css`
   color: #1f2933;
   font-family: Athena, ui-sans-serif, system-ui, sans-serif;
-  font-size: 48px;
-  line-height: 1;
+  font-size: clamp(40px, 9vw, 48px);
+  line-height: 0.95;
   margin: 0;
+`;
+
+const menuSubtitle = css`
+  color: #697889;
+  font-size: 15px;
+  line-height: 1.45;
+  margin: 0;
+`;
+
+const menuSections = css`
+  display: grid;
+  gap: 20px;
+  text-align: left;
+`;
+
+const menuSection = css`
+  display: grid;
+  gap: 10px;
+`;
+
+const menuSectionLabel = css`
+  color: #586575;
+  font-family: Athena, ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  margin: 0;
+  text-transform: uppercase;
 `;
 
 const buttonStack = css`
   display: grid;
-  gap: 12px;
+  gap: 10px;
+`;
+
+const menuDivider = css`
+  background: rgba(31, 41, 51, 0.1);
+  height: 1px;
+  width: 100%;
 `;
 
 const secondaryActions = css`
@@ -1533,23 +1702,36 @@ const secondaryActions = css`
 `;
 
 const menuHint = css`
-  color: #586575;
-  font-size: 14px;
+  color: #697889;
+  font-size: 13px;
+  line-height: 1.4;
+  margin: -2px 0 2px;
+`;
+
+const menuMeta = css`
+  color: #0c6fa5;
+  font-size: 13px;
+  font-weight: 600;
   line-height: 1.35;
-  margin: -4px 0 4px;
+  margin: -2px 0 2px;
 `;
 
 const menuButton = css`
   -webkit-user-drag: none;
-  background: #f9fbf3;
+  background: rgba(255, 255, 255, 0.78);
   border: 0;
+  box-shadow: 0 10px 24px rgba(31, 41, 51, 0.08);
+  box-sizing: border-box;
   color: #1f2933;
   cursor: pointer;
   font: inherit;
+  font-size: 17px;
   min-height: 56px;
   padding: 10px 16px;
+  text-align: center;
   transition:
     background-color 150ms ease,
+    box-shadow 150ms ease,
     color 150ms ease,
     transform 150ms ease;
   user-select: none;
@@ -1557,36 +1739,52 @@ const menuButton = css`
 
   &:hover {
     background: #ffffff;
+    box-shadow: 0 16px 32px rgba(31, 41, 51, 0.12);
     color: #0c6fa5;
-    transform: scaleX(1.04) scaleY(1.02);
+    transform: translateY(-2px);
   }
 
   &:active {
-    transform: scaleX(0.96) scaleY(0.98);
+    transform: translateY(0);
   }
+`;
+
+const menuButtonFeatured = css`
+  border-left: 4px solid #2f8f46;
+  font-weight: 600;
+  padding-left: 14px;
+  text-align: left;
 `;
 
 const secondaryButton = css`
   -webkit-user-drag: none;
-  background: rgba(249, 251, 243, 0.72);
+  background: rgba(255, 255, 255, 0.72);
   border: 0;
+  box-shadow: 0 8px 18px rgba(31, 41, 51, 0.08);
   color: #1f2933;
   cursor: pointer;
   font: inherit;
   font-size: 15px;
-  min-height: 40px;
-  padding: 8px 12px;
+  min-height: 42px;
+  padding: 8px 14px;
   transition:
     background-color 150ms ease,
+    box-shadow 150ms ease,
     color 150ms ease,
     transform 150ms ease;
   user-select: none;
 
   &:hover {
     background: #ffffff;
+    box-shadow: 0 12px 24px rgba(31, 41, 51, 0.12);
     color: #0c6fa5;
-    transform: scaleX(1.04) scaleY(1.02);
+    transform: translateY(-1px);
   }
+`;
+
+const secondaryButtonAccent = css`
+  border-left: 3px solid #0c6fa5;
+  font-weight: 600;
 `;
 
 const exitButton = css`
@@ -1604,7 +1802,8 @@ const optionList = css`
 
 const optionRow = css`
   align-items: center;
-  background: rgba(255, 255, 255, 0.64);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 8px 18px rgba(31, 41, 51, 0.06);
   color: #1f2933;
   display: flex;
   gap: 12px;
@@ -1612,6 +1811,15 @@ const optionRow = css`
   min-height: 52px;
   padding: 8px 12px;
   text-align: left;
+`;
+
+const volumeOptionRow = css`
+  ${optionRow};
+  flex-wrap: wrap;
+
+  span {
+    flex: 1 1 100%;
+  }
 `;
 
 const smallButton = css`
@@ -1716,14 +1924,35 @@ const rewardCard = css`
     transform 150ms ease;
   user-select: none;
 
+  &:hover {
+    background: #f9fbf3;
+    transform: translateY(-2px);
+  }
+`;
+
+const rewardText = css`
+  display: grid;
+  gap: 8px;
+
   strong {
     font-size: 22px;
     line-height: 1.05;
   }
+`;
 
-  &:hover {
-    background: #f9fbf3;
-    transform: translateY(-2px);
+const rewardSpriteFrame = css`
+  align-items: center;
+  background: #eef4e7;
+  border: 1px solid rgba(31, 41, 51, 0.12);
+  display: flex;
+  height: 66px;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  width: 72px;
+
+  > * {
+    flex: 0 0 auto;
   }
 `;
 

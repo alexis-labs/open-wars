@@ -2,8 +2,13 @@ import { SongName, SoundName } from '@deities/athena/info/Music.tsx';
 import parseInteger from '@nkzw/core/parseInteger.js';
 import { Music, Sounds } from 'athena-crisis:audio';
 import { Howl, Howler } from 'howler';
+import { getProceduralSoundProfile, getTalkingBlipProfile } from './audio/proceduralProfiles.ts';
+import { isPlaceholderSource } from './audio/placeholders.ts';
+import { proceduralSampleRate, renderProceduralSamples } from './audio/synthesize.ts';
 
 export type AudioVolumeType = 'master' | 'music' | 'sound';
+
+const maxConcurrentSfx = 8;
 
 // Keep in sync with `ares/index.html`.
 const storageKeys = {
@@ -17,7 +22,7 @@ const pausedKey = '::AC::paused';
 const isMusic = (name: SoundName | SongName): name is SongName => Music.has(name as SongName);
 
 class AudioPlayer {
-  private readonly hasProceduralFallback: boolean;
+  private activeSfxCount = 0;
   private audioContext: AudioContext | null = null;
   private readonly instances = new Map<SongName | SoundName, Howl>();
   private currentInstance: Howl | null = null;
@@ -28,20 +33,19 @@ class AudioPlayer {
     SoundName,
     Readonly<{
       gain: GainNode;
+      source: AudioBufferSourceNode;
       timer: number;
     }>
   >();
 
-  constructor(private readonly music: ReadonlyMap<SongName | SoundName, string>) {
-    this.hasProceduralFallback = new Set(music.values()).size <= 2;
-  }
+  constructor(private readonly music: ReadonlyMap<SongName | SoundName, string>) {}
 
   preload() {
     if (!this.didPreload) {
       this.didPreload = true;
       (window.requestIdleCallback || requestAnimationFrame)(() => {
-        if (!this.hasProceduralFallback) {
-          for (const [name] of Sounds) {
+        for (const [name] of Sounds) {
+          if (!this.shouldUseProcedural(name)) {
             this.getInstance(name);
           }
         }
@@ -89,7 +93,6 @@ class AudioPlayer {
       rate = 1;
     }
 
-    const instance = this.getInstance(sound);
     const reduceVolume = sound === 'Fireworks' || sound.startsWith('Talking/');
     const volume = getVolume('sound') * (reduceVolume ? 0.66 : 1);
 
@@ -97,7 +100,7 @@ class AudioPlayer {
       return;
     }
 
-    if (this.hasProceduralFallback) {
+    if (this.shouldUseProcedural(sound)) {
       this.playProceduralSound(sound, rate, volume);
       return;
     }
@@ -107,19 +110,36 @@ class AudioPlayer {
       console.log(`%caudio › playing sound '${sound}'.`, `color: #777;`);
     }
 
+    const instance = this.getInstance(sound);
     if (instance.playing()) {
       instance.seek(0);
     }
 
     instance.volume(volume);
     instance.rate(rate);
+    instance.once('playerror', () => this.playProceduralSound(sound, rate, volume));
     instance.play();
   }
 
+  playTalkingBlip(sound: SoundName, variant = 0) {
+    const volume = getVolume('sound') * 0.66;
+    if (this.paused || volume <= 0) {
+      return;
+    }
+
+    if (this.shouldUseProcedural(sound)) {
+      this.playProceduralProfile(getTalkingBlipProfile(sound, variant), 1, volume, false);
+      return;
+    }
+
+    this.playSound(sound, 1);
+  }
+
   playOrContinueSound(sound: SoundName, rate = 1) {
-    if (this.hasProceduralFallback) {
+    if (this.shouldUseProcedural(sound)) {
       if (!this.proceduralSounds.has(sound)) {
-        this.playProceduralSound(sound, rate, getVolume('sound'));
+        const profile = getProceduralSoundProfile(sound);
+        this.playProceduralSound(sound, rate, getVolume('sound'), profile.loop ?? false);
       }
       return;
     }
@@ -131,7 +151,7 @@ class AudioPlayer {
   }
 
   stop(name: SoundName | SongName, duration = 250) {
-    if (this.hasProceduralFallback && !isMusic(name)) {
+    if (!isMusic(name) && this.shouldUseProcedural(name)) {
       this.stopProceduralSound(name, duration);
       return;
     }
@@ -231,6 +251,13 @@ class AudioPlayer {
     }
   }
 
+  private shouldUseProcedural(sound: SoundName | SongName) {
+    if (isMusic(sound)) {
+      return isPlaceholderSource(this.music.get(sound));
+    }
+    return isPlaceholderSource(this.music.get(sound));
+  }
+
   private getInstance(name: SongName | SoundName) {
     if (!this.instances.has(name)) {
       const source = this.music.get(name);
@@ -239,10 +266,10 @@ class AudioPlayer {
       }
 
       const isMusicType = isMusic(name);
-      const isMessageSound = name.startsWith('Talking/');
+      const isMovementLoop = name.startsWith('Movement/') && !name.endsWith('End');
       const instance = new Howl({
         html5: false,
-        loop: isMusicType || isMessageSound,
+        loop: isMusicType || isMovementLoop,
         onplayerror: isMusicType
           ? () =>
               instance.once('unlock', () => {
@@ -250,7 +277,12 @@ class AudioPlayer {
                   instance.play();
                 }
               })
-          : undefined,
+          : () => {
+              if (!isMusicType) {
+                const volume = getVolume('sound') * (name.startsWith('Talking/') ? 0.66 : 1);
+                this.playProceduralSound(name, 1, volume);
+              }
+            },
         src: [source],
       });
 
@@ -274,60 +306,90 @@ class AudioPlayer {
     return this.audioContext;
   }
 
-  private playProceduralSound(sound: SoundName, rate: number, volume: number) {
+  private playProceduralSound(
+    sound: SoundName,
+    rate: number,
+    volume: number,
+    loop = getProceduralSoundProfile(sound).loop,
+  ) {
+    this.playProceduralProfile(getProceduralSoundProfile(sound), rate, volume, loop, sound);
+  }
+
+  private playProceduralProfile(
+    profile: ReturnType<typeof getProceduralSoundProfile>,
+    rate: number,
+    volume: number,
+    loop: boolean | undefined,
+    sound?: SoundName,
+  ) {
     const context = this.getAudioContext();
     if (!context || this.paused || rate <= 0 || volume <= 0) {
       return;
     }
 
-    void context.resume();
-    this.stopProceduralSound(sound, 0);
-
-    const profile = getProceduralSoundProfile(sound);
-    const now = context.currentTime;
-    const duration = profile.duration / rate;
-    const gain = context.createGain();
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(volume * profile.volume, now + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-    gain.connect(context.destination);
-
-    const oscillator = context.createOscillator();
-    oscillator.frequency.setValueAtTime(profile.frequency, now);
-    oscillator.frequency.exponentialRampToValueAtTime(profile.endFrequency, now + duration);
-    oscillator.type = profile.type;
-    oscillator.connect(gain);
-    oscillator.start(now);
-    oscillator.stop(now + duration);
-
-    if (profile.noise > 0) {
-      const noiseGain = context.createGain();
-      noiseGain.gain.value = volume * profile.volume * profile.noise;
-      noiseGain.connect(gain);
-      const noise = context.createBufferSource();
-      const buffer = context.createBuffer(
-        1,
-        Math.max(1, Math.ceil(context.sampleRate * duration)),
-        context.sampleRate,
-      );
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < data.length; i++) {
-        data[i] = Math.random() * 2 - 1;
-      }
-      noise.buffer = buffer;
-      noise.connect(noiseGain);
-      noise.start(now);
-      noise.stop(now + duration);
+    if (!loop && this.activeSfxCount >= maxConcurrentSfx) {
+      return;
     }
 
-    const timer = window.setTimeout(() => {
-      gain.disconnect();
-      this.proceduralSounds.delete(sound);
-      if (profile.loop && !this.paused) {
-        this.playProceduralSound(sound, rate, volume);
-      }
-    }, duration * 1000);
-    this.proceduralSounds.set(sound, { gain, timer });
+    void context.resume();
+    if (sound) {
+      this.stopProceduralSound(sound, 0);
+    }
+
+    const samples = renderProceduralSamples(profile, rate);
+    const buffer = context.createBuffer(1, samples.length, proceduralSampleRate);
+    buffer.copyToChannel(samples, 0);
+
+    const now = context.currentTime;
+    const duration = buffer.duration;
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(volume, now + 0.008);
+    if (!loop) {
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    } else {
+      gain.gain.setValueAtTime(volume, now + 0.008);
+    }
+    gain.connect(context.destination);
+
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.playbackRate.value = 1;
+    source.loop = loop ?? false;
+    source.connect(gain);
+    source.start(now);
+    if (!loop) {
+      source.stop(now + duration);
+    }
+
+    if (!loop) {
+      this.activeSfxCount++;
+    }
+
+    const timer = window.setTimeout(
+      () => {
+        try {
+          source.stop();
+        } catch {
+          // Already stopped.
+        }
+        gain.disconnect();
+        if (sound) {
+          this.proceduralSounds.delete(sound);
+        }
+        if (!loop) {
+          this.activeSfxCount = Math.max(0, this.activeSfxCount - 1);
+        }
+        if (loop && sound && !this.paused) {
+          this.playProceduralSound(sound, rate, volume, true);
+        }
+      },
+      loop ? duration * 1000 : duration * 1000 + 20,
+    );
+
+    if (sound && loop) {
+      this.proceduralSounds.set(sound, { gain, source, timer });
+    }
   }
 
   private stopProceduralSound(sound: SoundName, duration: number) {
@@ -338,6 +400,12 @@ class AudioPlayer {
 
     window.clearTimeout(proceduralSound.timer);
     this.proceduralSounds.delete(sound);
+
+    try {
+      proceduralSound.source.stop();
+    } catch {
+      // Already stopped.
+    }
 
     const context = this.audioContext;
     if (!context || duration <= 0) {
@@ -356,160 +424,6 @@ class AudioPlayer {
 const getVolume = (type: AudioVolumeType) => {
   const volume = Number.parseFloat(localStorage.getItem(storageKeys[type]) || '');
   return Number.isFinite(volume) && volume >= 0 && volume <= 1 ? volume : 1;
-};
-
-type ProceduralSoundProfile = Readonly<{
-  duration: number;
-  endFrequency: number;
-  frequency: number;
-  loop?: boolean;
-  noise: number;
-  type: OscillatorType;
-  volume: number;
-}>;
-
-const getProceduralSoundProfile = (sound: SoundName): ProceduralSoundProfile => {
-  if (sound.startsWith('Movement/') && !sound.endsWith('End')) {
-    return {
-      duration: 0.18,
-      endFrequency: sound === 'Movement/Air' ? 420 : 95,
-      frequency: sound === 'Movement/Air' ? 520 : 120,
-      loop: true,
-      noise: sound === 'Movement/Air' ? 0.1 : 0.35,
-      type: sound === 'Movement/Air' ? 'sine' : 'sawtooth',
-      volume: 0.08,
-    };
-  }
-
-  if (sound.startsWith('Movement/')) {
-    return {
-      duration: 0.12,
-      endFrequency: 180,
-      frequency: 120,
-      noise: 0.25,
-      type: 'triangle',
-      volume: 0.1,
-    };
-  }
-
-  if (sound.startsWith('Explosion') || sound === 'Attack/Bomb') {
-    return {
-      duration: 0.45,
-      endFrequency: 45,
-      frequency: 140,
-      noise: 0.75,
-      type: 'sawtooth',
-      volume: 0.24,
-    };
-  }
-
-  if (sound.startsWith('Attack/')) {
-    const isHeavy =
-      sound.includes('Artillery') ||
-      sound.includes('Cannon') ||
-      sound.includes('Rocket') ||
-      sound.includes('SAM') ||
-      sound.includes('Torpedo');
-    return {
-      duration: isHeavy ? 0.3 : 0.13,
-      endFrequency: isHeavy ? 70 : 360,
-      frequency: isHeavy ? 220 : 820,
-      noise: isHeavy ? 0.5 : 0.3,
-      type: isHeavy ? 'sawtooth' : 'square',
-      volume: isHeavy ? 0.2 : 0.14,
-    };
-  }
-
-  if (sound.startsWith('Crystal/') || sound === 'Unit/Heal' || sound === 'Unit/Supply') {
-    return {
-      duration: 0.35,
-      endFrequency: 960,
-      frequency: 520,
-      noise: 0.05,
-      type: 'sine',
-      volume: 0.12,
-    };
-  }
-
-  if (sound.startsWith('Talking/')) {
-    return {
-      duration: 0.22,
-      endFrequency: sound === 'Talking/Low' ? 170 : sound === 'Talking/High' ? 420 : 280,
-      frequency: sound === 'Talking/Low' ? 140 : sound === 'Talking/High' ? 360 : 240,
-      loop: true,
-      noise: 0.05,
-      type: 'triangle',
-      volume: 0.06,
-    };
-  }
-
-  switch (sound) {
-    case 'UI/Cancel':
-      return {
-        duration: 0.1,
-        endFrequency: 180,
-        frequency: 320,
-        noise: 0,
-        type: 'triangle',
-        volume: 0.1,
-      };
-    case 'UI/Next':
-    case 'UI/Previous':
-      return {
-        duration: 0.08,
-        endFrequency: sound === 'UI/Next' ? 760 : 420,
-        frequency: sound === 'UI/Next' ? 420 : 760,
-        noise: 0,
-        type: 'sine',
-        volume: 0.08,
-      };
-    case 'UI/LongPress':
-      return {
-        duration: 0.28,
-        endFrequency: 820,
-        frequency: 220,
-        noise: 0.05,
-        type: 'sawtooth',
-        volume: 0.1,
-      };
-    case 'UI/Put':
-      return {
-        duration: 0.08,
-        endFrequency: 220,
-        frequency: 180,
-        noise: 0.2,
-        type: 'square',
-        volume: 0.1,
-      };
-    case 'UI/Skip':
-      return {
-        duration: 0.16,
-        endFrequency: 980,
-        frequency: 260,
-        noise: 0,
-        type: 'sawtooth',
-        volume: 0.1,
-      };
-    case 'UI/Accept':
-    case 'UI/Start':
-      return {
-        duration: 0.12,
-        endFrequency: 640,
-        frequency: 420,
-        noise: 0,
-        type: 'sine',
-        volume: 0.1,
-      };
-    default:
-      return {
-        duration: 0.18,
-        endFrequency: 220,
-        frequency: 330,
-        noise: sound.startsWith('Unit/') ? 0.15 : 0.05,
-        type: 'triangle',
-        volume: 0.12,
-      };
-  }
 };
 
 const hasMasterVolume = () => localStorage.getItem(storageKeys.master) !== null;

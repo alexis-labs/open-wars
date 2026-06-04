@@ -43,7 +43,9 @@
     "test": "npm-run-all --parallel tsc:check lint lint:format relay vitest:run",
     "test:ci": "pnpm npm-run-all --parallel tsc:check lint lint:format vitest:run-ci",
     "tsc:check": "tsgo",
-    "verify:production": "node scripts/verify-production.mjs",
+    "audio:generate": "node --no-warnings --experimental-specifier-resolution=node --loader ts-node/esm ./ui/audio/generate-sfx.tsx",
+    "audio:verify": "node scripts/verify-audio.mjs",
+    "verify:production": "node scripts/verify-audio.mjs && node scripts/verify-production.mjs",
     "vitest:run": "CPUS=$(if uname -s | grep -q Darwin; then sysctl -n hw.ncpu; else nproc --all; fi); export VITEST_MAX_THREADS=$(($CPUS - 2)); export VITEST_MIN_THREADS=$(($CPUS - 2)); vitest run",
     "vitest:run-ci": "vitest run"
   },

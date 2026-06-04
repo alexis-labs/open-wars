@@ -4,7 +4,9 @@ import applyActionResponse from '@deities/apollo/actions/applyActionResponse.tsx
 import dateNow from '@deities/apollo/lib/dateNow.tsx';
 import getActionResponseVectors from '@deities/apollo/lib/getActionResponseVectors.tsx';
 import { GameActionResponse } from '@deities/apollo/Types.tsx';
-import addEndTurnAnimations from '../../lib/addEndTurnAnimations.tsx';
+import addEndTurnAnimations, {
+  getEndTurnIncomeStartMap,
+} from '../../lib/addEndTurnAnimations.tsx';
 import { Actions, State } from '../../Types.tsx';
 import { resetBehavior } from '../Behavior.tsx';
 import NullBehavior from '../NullBehavior.tsx';
@@ -68,11 +70,14 @@ export default async function endTurnAction(actions: Actions, state: State) {
       ...resetBehavior(NullBehavior),
       lastActionResponse: actionResponse,
       lastActionTime: dateNow(),
-      map: newMap
-        .copy({
-          units: map.units,
-        })
-        .recover(current.player),
+      map: getEndTurnIncomeStartMap(
+        newMap
+          .copy({
+            units: map.units,
+          })
+          .recover(current.player),
+        actionResponse,
+      ),
     });
   }
 }

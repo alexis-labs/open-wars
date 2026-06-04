@@ -63,7 +63,7 @@ const animationStyle: Record<Exclude<ExplosionStyle, 'building'>, ExplosionConfi
     explode: 10,
     frames,
     offset: 2.58,
-    sound: 'Explosion/Building',
+    sound: 'Building/Collapse',
     source: Sprites.Explosion,
   },
 };

@@ -37,7 +37,7 @@ export default function BuildingCreate({
         )
       }
       size={spriteSize}
-      sound="Unit/CreateBuilding"
+      sound="Building/Place"
       sprite="Building-Create"
       {...props}
     />

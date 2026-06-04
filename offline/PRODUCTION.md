@@ -50,4 +50,5 @@ Pull requests also run `.github/workflows/production.yml`, which installs depend
 
 - The production shell no longer depends on the upstream key art image.
 - The first skirmish now uses an Open Wars-owned starter map in `offline/starterMap.tsx`.
-- Proprietary upstream in-game art, unit descriptions, character references, and music remain release blockers before public distribution.
+- Open Wars ships original CC0 sound effects under `ui/audio/sfx/` (see `ui/audio/LICENSES.md`). Regenerate with `pnpm audio:generate` and verify with `pnpm audio:verify`.
+- Proprietary upstream in-game art, unit descriptions, character references, and **background music** remain release blockers before public distribution.

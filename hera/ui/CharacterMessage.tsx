@@ -115,7 +115,7 @@ const MessageComponent = ({
         AudioPlayer.stop(sound);
         setAnimationComplete(true);
       } else if (hasNext) {
-        AudioPlayer.playOrContinueSound(sound);
+        AudioPlayer.playTalkingBlip(sound, currentLine);
         setAnimationComplete(false);
         setCurrentLine(currentLine + 2);
       } else if (!done.current) {
@@ -167,11 +167,7 @@ const MessageComponent = ({
     return () => window.removeEventListener('resize', listener);
   }, [currentLine, clientWidth, lines, onComplete]);
 
-  useEffect(() => {
-    AudioPlayer.playSound(sound);
-
-    return () => AudioPlayer.stop(sound);
-  }, [sound]);
+  useEffect(() => () => AudioPlayer.stop(sound), [sound]);
 
   const isBottom = position === 'bottom';
   const offset = isBottom ? 20 : -20;
@@ -255,6 +251,9 @@ const MessageComponent = ({
                     <motion.span
                       className={letterStyle}
                       key={`${currentLine}$${wordIndex}$${index}`}
+                      onAnimationStart={() =>
+                        AudioPlayer.playTalkingBlip(sound, wordIndex * 97 + index)
+                      }
                       onAnimationComplete={
                         wordIndex === words.length - 1 && index === word.length - 1
                           ? () => {

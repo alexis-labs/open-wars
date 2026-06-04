@@ -49,9 +49,8 @@ const mission1: TutorialMissionDefinition = {
         [9, 7, { h: 100, i: HQ.id, p: 2 }],
         [1, 1, { h: 100, i: House.id, p: 0 }],
         [7, 4, { h: 100, i: House.id, l: 1, p: 0 }],
-        [9, 5, { h: 100, i: House.id, p: 0 }],
-        [3, 1, { h: 100, i: HQ.id, p: 1 }],
         [5, 1, { h: 100, i: House.id, p: 0 }],
+        [3, 1, { h: 100, i: HQ.id, p: 1 }],
       ],
       config: {
         blocklistedBuildings: [],
@@ -152,7 +151,6 @@ const mission1: TutorialMissionDefinition = {
       teams: [{"id":1,"name":"","players":[{"funds":0,"id":1,"skills":[]}]},{"id":2,"name":"","players":[{"funds":0,"id":2,"skills":[]}]}],
       units: [
         [3, 3, { g: 40, h: 100, i: Pioneer.id, p: 1 }],
-        [8, 4, { g: 40, h: 70, i: Infantry.id, p: 2 }],
         [4, 5, { g: 40, h: 100, i: Pioneer.id, p: 1 }],
       ],
     }),
@@ -420,7 +418,7 @@ const mission3: TutorialMissionDefinition = {
       teams: [{"id":1,"name":"","players":[{"funds":0,"id":1,"skills":[]}]},{"id":2,"name":"","players":[{"funds":0,"id":2,"skills":[]}]}],
       units: [
         [3, 3, { g: 40, h: 100, i: Pioneer.id, p: 1 }],
-        [7, 4, { g: 50, h: 80, i: Infantry.id, p: 2 }],
+        [9, 4, { g: 40, h: 100, i: Pioneer.id, p: 2 }],
       ],
     }),
   mapName: "Boot Camp 3: Reinforcements",

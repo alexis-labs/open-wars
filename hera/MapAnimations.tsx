@@ -137,6 +137,7 @@ export type ScrollIntoView = Readonly<{
 
 export type HealthAnimation = Readonly<{
   change: number;
+  labelPrefix?: string;
   position: Vector;
   previousHealth: number;
   type: 'health';

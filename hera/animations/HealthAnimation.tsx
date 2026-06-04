@@ -14,6 +14,7 @@ export default function HealthAnimation({
   animationConfig,
   change,
   clearTimer,
+  labelPrefix,
   onComplete,
   position,
   previousHealth,
@@ -24,6 +25,7 @@ export default function HealthAnimation({
   animationConfig: AnimationConfig;
   change: number;
   clearTimer: ClearTimerFunction;
+  labelPrefix?: string;
   onComplete?: () => void;
   position: Vector;
   previousHealth: number;
@@ -79,7 +81,7 @@ export default function HealthAnimation({
       {change == 0 ? (
         <fbt desc="No damage label">No damage!</fbt>
       ) : (
-        `${change < 0 ? '-' : '+'}${Math.abs(change)}`
+        `${change < 0 ? '-' : '+'}${labelPrefix || ''}${Math.abs(change)}`
       )}
     </motion.div>
   );

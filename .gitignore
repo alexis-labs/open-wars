@@ -26,6 +26,9 @@ tsconfig.tsbuildinfo
 zeus/ai/output/
 art/downloaded/
 
+# Audio files
+*.wav
+
 # Codegen
 apollo/EncodedActions.tsx
 apollo/FormatActions.tsx
