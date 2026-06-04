@@ -1,8 +1,26 @@
 import { decodeEffects, type Effects } from '@deities/apollo/Effects.tsx';
 import MapData from '@deities/athena/MapData.tsx';
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Project, SyntaxKind } from 'ts-morph';
-import root from '../../infra/root.ts';
+
+function getRepoRoot(): string {
+  const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+  if (existsSync(join(repoRoot, 'tsconfig.json'))) {
+    return repoRoot;
+  }
+
+  const cwd = process.cwd();
+  if (existsSync(join(cwd, 'editor-persist', 'patchMission.ts'))) {
+    return join(cwd, '..');
+  }
+
+  return repoRoot;
+}
+
+const repoRoot = getRepoRoot();
 import { generateEffectsCode } from './generateEffects.ts';
 import { generateMapConfig } from './generateMapConfig.ts';
 import { getMissionRegistryEntry, type MissionRegistryEntry } from './registry.ts';
@@ -70,7 +88,7 @@ export function patchMissionFile(
 ): void {
   const project = new Project({
     skipAddingFilesFromTsConfig: true,
-    tsConfigFilePath: `${root}/tsconfig.json`,
+    tsConfigFilePath: join(repoRoot, 'tsconfig.json'),
   });
 
   const sourceFile = project.addSourceFileAtPath(entry.missionsFile);
@@ -95,15 +113,31 @@ export function patchMissionFile(
 
   sourceFile.saveSync();
 
-  const formatResult = spawnSync('pnpm', ['oxfmt', '--write', entry.missionsFile], {
-    cwd: root,
-    shell: process.platform === 'win32',
-    stdio: 'pipe',
-  });
+  formatMissionFile(entry.missionsFile);
+}
+
+function formatMissionFile(missionsFile: string) {
+  const oxfmtCommand = process.platform === 'win32' ? 'oxfmt.cmd' : 'oxfmt';
+  const oxfmtPath = join(repoRoot, 'node_modules', '.bin', oxfmtCommand);
+
+  const formatResult = existsSync(oxfmtPath)
+    ? spawnSync(oxfmtPath, ['--write', missionsFile], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+        stdio: 'pipe',
+      })
+    : spawnSync('pnpm', ['oxfmt', '--write', missionsFile], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+        shell: process.platform === 'win32',
+        stdio: 'pipe',
+      });
 
   if (formatResult.status !== 0) {
-    throw new Error(
-      formatResult.stderr?.toString() || formatResult.stdout?.toString() || 'oxfmt failed',
+    // Mission source is already written; formatting is best-effort.
+    console.warn(
+      '[open-wars] oxfmt failed:',
+      formatResult.stderr?.toString() || formatResult.stdout?.toString() || 'unknown error',
     );
   }
 }

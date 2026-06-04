@@ -1,9 +1,34 @@
+import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Plugin, ViteDevServer } from 'vite';
-import root from './root.ts';
 
 const savePath = '/__open-wars/editor/save-map';
+const persistModuleId = '/editor-persist/patchMission.ts';
+
+function getRepoRoot(): string {
+  const cwd = process.cwd();
+  if (existsSync(join(cwd, 'editor-persist', 'patchMission.ts'))) {
+    return join(cwd, '..');
+  }
+  if (existsSync(join(cwd, 'offline', 'editor-persist', 'patchMission.ts'))) {
+    return cwd;
+  }
+
+  const fromPlugin = join(fileURLToPath(new URL('.', import.meta.url)), '..');
+  if (existsSync(join(fromPlugin, 'offline', 'editor-persist', 'patchMission.ts'))) {
+    return fromPlugin;
+  }
+
+  return join(cwd, '..');
+}
+
+type PersistModule = typeof import('../offline/editor-persist/patchMission.ts');
 
 export default function offlineEditorSavePlugin(): Plugin {
+  let persistModule: PersistModule | null = null;
+
   return {
     name: 'open-wars-offline-editor-save',
     apply: 'serve',
@@ -28,16 +53,27 @@ export default function offlineEditorSavePlugin(): Plugin {
             return;
           }
 
-          const { persistEditorMapToProject } = await import(
-            `${root}/offline/editor-persist/patchMission.ts`
-          );
-
-          persistEditorMapToProject({
+          const persistPayload = {
             effects: payload.effects || '',
             id: payload.id,
             mapName: payload.mapName,
             state: payload.state,
-          });
+          };
+
+          if (process.platform === 'win32') {
+            runPersistCli(getRepoRoot(), persistPayload);
+          } else {
+            try {
+              if (!persistModule) {
+                persistModule = (await server.ssrLoadModule(
+                  persistModuleId,
+                )) as PersistModule;
+              }
+              persistModule.persistEditorMapToProject(persistPayload);
+            } catch (loadError) {
+              runPersistCli(getRepoRoot(), persistPayload, loadError);
+            }
+          }
 
           sendJson(response, 200, { ok: true });
         } catch (error) {
@@ -67,4 +103,31 @@ function sendJson(
   response.statusCode = status;
   response.setHeader('Content-Type', 'application/json');
   response.end(JSON.stringify(payload));
+}
+
+function runPersistCli(
+  repoRoot: string,
+  payload: Parameters<PersistModule['persistEditorMapToProject']>[0],
+  loadError?: unknown,
+) {
+  const cliPath = join(repoRoot, 'offline', 'editor-persist', 'save-map-cli.ts');
+  const nodeOptions = process.env.NODE_OPTIONS || '';
+  const loaderArgs = nodeOptions.includes('ts-node/esm')
+    ? []
+    : ['--no-warnings', '--experimental-specifier-resolution=node', '--loader', 'ts-node/esm'];
+
+  const result = spawnSync(process.execPath, [...loaderArgs, cliPath], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    input: JSON.stringify(payload),
+    shell: false,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
+  if (result.status !== 0) {
+    const cliError = result.stderr?.trim() || result.stdout?.trim();
+    const hint =
+      loadError instanceof Error ? loadError.message : String(loadError);
+    throw new Error(cliError || hint || 'Save to project failed.');
+  }
 }

@@ -14,6 +14,11 @@ export default defineConfig({
   build: {
     target: 'esnext',
   },
+  server: {
+    fs: {
+      allow: ['..'],
+    },
+  },
   define: {
     'process.env.IS_LANDING_PAGE': `false`,
     'process.env.NATIVE_APP_VERSION': JSON.stringify(''),

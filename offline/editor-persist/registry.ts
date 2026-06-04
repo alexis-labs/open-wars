@@ -1,9 +1,26 @@
-import { join } from 'node:path';
-import root from '../../infra/root.ts';
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+function getRepoRoot(): string {
+  const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+  if (existsSync(join(repoRoot, 'offline', 'tutorial'))) {
+    return repoRoot;
+  }
+
+  const cwd = process.cwd();
+  if (existsSync(join(cwd, 'tutorial'))) {
+    return join(cwd, '..');
+  }
+
+  return repoRoot;
+}
+
+const repoRoot = getRepoRoot();
 import { act1MapIds } from '../act1/shared.tsx';
 import { act2MapIds } from '../act2/shared.tsx';
 import { act3MapIds } from '../act3/shared.tsx';
-import { tutorialMapIds } from '../tutorial/shared.tsx';
+import { LEGACY_CAMPAIGN_1_MAP_ID, tutorialMapIds } from '../tutorial/shared.tsx';
 
 export type MissionRegistryEntry = Readonly<{
   buildMapCall: 'buildTutorialMap' | 'buildAct2Map' | 'buildAct3Map';
@@ -21,7 +38,7 @@ function entry(
 ): MissionRegistryEntry {
   return {
     ...partial,
-    missionsFile: join(root, 'offline', partial.act, 'missions.tsx'),
+    missionsFile: join(repoRoot, 'offline', partial.act, 'missions.tsx'),
   };
 }
 
@@ -85,5 +102,14 @@ export const missionRegistry = new Map<string, MissionRegistryEntry>([
 ].map((registryEntry) => [registryEntry.mapId, registryEntry]));
 
 export function getMissionRegistryEntry(mapId: string): MissionRegistryEntry | null {
-  return missionRegistry.get(mapId) || null;
+  const entry = missionRegistry.get(mapId);
+  if (entry) {
+    return entry;
+  }
+
+  if (mapId === LEGACY_CAMPAIGN_1_MAP_ID) {
+    return missionRegistry.get(tutorialMapIds[0]) || null;
+  }
+
+  return null;
 }
