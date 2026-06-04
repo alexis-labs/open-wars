@@ -1,12 +1,13 @@
 'use client';
 
+import SpriteEditor from '@deities/hera/editor/SpriteEditor.tsx';
 import Button from '@deities/ui/Button.tsx';
 import { css, cx } from '@emotion/css';
 import { useCallback, useState } from 'react';
 import MapEditorExample from '../examples/map-editor.tsx';
 import PlaygroundDemoGame from './PlaygroundDemoGame.tsx';
 
-type Screen = 'mapEditor' | 'menu' | 'options' | 'playing';
+type Screen = 'mapEditor' | 'menu' | 'options' | 'playing' | 'spriteEditor';
 
 export default function PlaygroundMainMenu() {
   const [screen, setScreen] = useState<Screen>('menu');
@@ -28,6 +29,12 @@ export default function PlaygroundMainMenu() {
     setExitMessage(null);
     setFullscreenMessage(null);
     setScreen('mapEditor');
+  }, []);
+
+  const showSpriteEditor = useCallback(() => {
+    setExitMessage(null);
+    setFullscreenMessage(null);
+    setScreen('spriteEditor');
   }, []);
 
   const backToMenu = useCallback(() => {
@@ -75,6 +82,17 @@ export default function PlaygroundMainMenu() {
     );
   }
 
+  if (screen === 'spriteEditor') {
+    return (
+      <section className={editorShell}>
+        <Button className={editorMenuButton} onClick={backToMenu}>
+          Menu
+        </Button>
+        <SpriteEditor />
+      </section>
+    );
+  }
+
   return (
     <section className={menuShell}>
       <div className={menuPanel}>
@@ -108,6 +126,9 @@ export default function PlaygroundMainMenu() {
               </Button>
               <Button className={menuButton} onClick={showMapEditor}>
                 Map editor
+              </Button>
+              <Button className={menuButton} onClick={showSpriteEditor}>
+                Sprite editor
               </Button>
               <p className={menuHint}>Create maps with objectives and story events.</p>
               <Button className={menuButton} onClick={showOptions}>

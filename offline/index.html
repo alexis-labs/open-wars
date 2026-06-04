@@ -79,11 +79,80 @@
           filter: invert(1);
         }
       }
+
+      .boot-loader {
+        align-items: center;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        inset: 0;
+        justify-content: center;
+        pointer-events: none;
+        position: fixed;
+        text-align: center;
+        z-index: 2;
+      }
+
+      .boot-loader__status {
+        color: #586575;
+        font-size: 14px;
+        margin: 0;
+      }
+
+      .boot-loader__dots {
+        display: flex;
+        gap: 8px;
+      }
+
+      .boot-loader__dot {
+        animation: boot-loader-bounce 1.5s infinite;
+        background-color: #6fbf73;
+        border-radius: 2px;
+        height: 10px;
+        width: 10px;
+      }
+
+      .boot-loader__dot:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+
+      .boot-loader__dot:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes boot-loader-bounce {
+        0%,
+        100% {
+          background-color: #6fbf73;
+          transform: translate3d(0, 3px, 0);
+        }
+
+        33% {
+          background-color: #1f6f8b;
+        }
+
+        66% {
+          background-color: #4a8f6f;
+        }
+
+        50% {
+          transform: translate3d(0, -7px, 0);
+        }
+      }
     </style>
   </head>
   <body>
     <div class="background"></div>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot-loader" role="status" aria-live="polite">
+        <div class="boot-loader__dots" aria-hidden="true">
+          <span class="boot-loader__dot"></span>
+          <span class="boot-loader__dot"></span>
+          <span class="boot-loader__dot"></span>
+        </div>
+        <p class="boot-loader__status">Loading…</p>
+      </div>
+    </div>
     <script src="/index.tsx" type="module"></script>
   </body>
 </html>

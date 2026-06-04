@@ -62,7 +62,7 @@ const mission1: Act1MissionDefinition = {
       [1, 1, { h: 100, i: HQ.id, p: 1 }],
       [2, 2, { h: 100, i: Factory.id, p: 1 }],
       [7, 4, { h: 100, i: House.id, l: 1, p: 0 }],
-      [10, 6, { h: 100, i: HQ.id, p: 2 }],
+      [9, 6, { h: 100, i: HQ.id, p: 2 }],
     ],
     config: {
       blocklistedBuildings: [],

@@ -6,7 +6,6 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 import presets from '../infra/babelPresets.tsx';
 import createResolver from '../infra/createResolver.tsx';
 import localArtPlugin from '../infra/localArtPlugin.ts';
-import offlineEditorSavePlugin from '../infra/offlineEditorSavePlugin.ts';
 import pixelarticonsPlugin from '../infra/pixelarticonsPlugin.ts';
 
 export default defineConfig({
@@ -14,17 +13,11 @@ export default defineConfig({
   build: {
     target: 'esnext',
   },
-  server: {
-    fs: {
-      allow: ['..'],
-    },
-  },
   define: {
     'process.env.IS_LANDING_PAGE': `false`,
     'process.env.NATIVE_APP_VERSION': JSON.stringify(''),
   },
   plugins: [
-    offlineEditorSavePlugin(),
     localArtPlugin(),
     createResolver(),
     pixelarticonsPlugin(),

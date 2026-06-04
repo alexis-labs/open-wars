@@ -190,7 +190,7 @@ const mission3: Act3MissionDefinition = {
     buildings: [
       [1, 1, { h: 100, i: HQ.id, p: 1 }],
       [2, 2, { h: 100, i: Factory.id, p: 1 }],
-      [10, 5, { h: 100, i: House.id, l: 1, p: 0 }],
+      [9, 5, { h: 100, i: House.id, l: 1, p: 0 }],
       [13, 9, { h: 100, i: HQ.id, p: 2 }],
     ],
     config: {
@@ -300,7 +300,7 @@ const mission4: Act3MissionDefinition = {
       [3, 5, { g: 60, h: 100, i: Jeep.id, p: 1 }],
       [9, 6, { g: 50, h: 95, i: Infantry.id, p: 2 }],
       [10, 7, { g: 50, h: 90, i: Infantry.id, p: 2 }],
-      [11, 6, { g: 50, h: 100, i: Artillery.id, p: 2 }],
+      [11, 6, { a: [[1, 7]], g: 40, h: 100, i: Artillery.id, p: 2 }],
       [12, 8, { g: 50, h: 85, i: Infantry.id, p: 2 }],
     ],
   }),
@@ -387,12 +387,12 @@ const mission5: Act3MissionDefinition = {
     units: [
       [3, 3, { g: 50, h: 100, i: Infantry.id, p: 1 }],
       [4, 3, { g: 50, h: 100, i: Infantry.id, p: 1 }],
-      [3, 4, { g: 50, h: 100, i: ArtilleryHumvee.id, p: 1 }],
+      [3, 4, { g: 40, h: 100, i: ArtilleryHumvee.id, p: 1 }],
       [4, 5, { g: 60, h: 100, i: Jeep.id, p: 1 }],
       [9, 6, { g: 50, h: 95, i: Infantry.id, p: 2 }],
       [10, 7, { g: 50, h: 90, i: Infantry.id, p: 2 }],
       [11, 8, { g: 50, h: 85, i: Infantry.id, p: 2 }],
-      [12, 6, { g: 50, h: 100, i: Artillery.id, p: 2 }],
+      [11, 6, { a: [[1, 7]], g: 40, h: 100, i: Artillery.id, p: 2 }],
       [13, 9, { g: 50, h: 80, i: Infantry.id, p: 2 }],
     ],
   }),

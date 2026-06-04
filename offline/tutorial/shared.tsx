@@ -1,14 +1,9 @@
 import CharacterMessage from '@deities/apollo/CharacterMessage.tsx';
-import {
-  decodeEffects,
-  encodeEffects,
-  type Effects,
-  type EncodedEffects,
-} from '@deities/apollo/Effects.tsx';
+import { encodeEffects, type Effects } from '@deities/apollo/Effects.tsx';
 import toSlug from '@deities/apollo/lib/toSlug.tsx';
 import { Factory, HQ, House } from '@deities/athena/info/Building.tsx';
 import { Forest, Mountain, Plain, Street } from '@deities/athena/info/Tile.tsx';
-import { Artillery, ArtilleryHumvee, Infantry, Jeep, Pioneer } from '@deities/athena/info/Unit.tsx';
+import { Artillery, Infantry, Jeep, Pioneer } from '@deities/athena/info/Unit.tsx';
 import withModifiers from '@deities/athena/lib/withModifiers.tsx';
 import MapData from '@deities/athena/MapData.tsx';
 import { type MapObject } from '@deities/hera/editor/Types.tsx';
@@ -18,7 +13,7 @@ export const BOOT_CAMP_CAMPAIGN_NAME = 'Boot Camp';
 export const BOOT_CAMP_CAMPAIGN_DESCRIPTION =
   'Six guided missions that teach movement, combat, economy, and victory conditions in Open Wars.';
 
-export const tutorialCampaignVersion = 6;
+export const tutorialCampaignVersion = 7;
 
 export const tutorialMapIds = [
   'local-map-tutorial-1',
@@ -165,10 +160,6 @@ export function standardTeams(playerFunds = 0) {
   ];
 }
 
-export function effectsFromEncoded(encoded: EncodedEffects): Effects {
-  return decodeEffects(encoded);
-}
-
 export function createTutorialEffects(
   startMessages: ReadonlyArray<CharacterMessageEffectAction>,
   winMessages: ReadonlyArray<CharacterMessageEffectAction>,
@@ -200,12 +191,7 @@ export function createTutorialEffects(
 }
 
 export function msg(
-  unit:
-    | typeof Pioneer
-    | typeof Infantry
-    | typeof Artillery
-    | typeof Jeep
-    | typeof ArtilleryHumvee,
+  unit: typeof Pioneer | typeof Infantry | typeof Artillery | typeof Jeep,
   message: string,
   variant = 0,
 ) {

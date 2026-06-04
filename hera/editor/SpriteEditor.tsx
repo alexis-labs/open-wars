@@ -4,12 +4,15 @@ import {
   setSpriteOverride,
   subscribeSpriteOverrides,
 } from '@deities/art/SpriteOverrides.tsx';
+import { assetPath } from '@deities/art/AssetInfo.tsx';
 import { spriteURL, updatePreparedSprite } from '@deities/art/Sprites.tsx';
 import VariantConfiguration from '@deities/art/VariantConfiguration.tsx';
 import { mapBuildings } from '@deities/athena/info/Building.tsx';
 import { getAllDecorators } from '@deities/athena/info/Decorator.tsx';
 import { SpriteVariant } from '@deities/athena/info/SpriteVariants.tsx';
+import { mapTiles, RenderType } from '@deities/athena/info/Tile.tsx';
 import { mapUnits } from '@deities/athena/info/Unit.tsx';
+import { Modifier } from '@deities/athena/lib/Modifier.tsx';
 import { Biome, Biomes, getBiomeName } from '@deities/athena/map/Biome.tsx';
 import { TileSize } from '@deities/athena/map/Configuration.tsx';
 import { css, cx } from '@emotion/css';
@@ -27,8 +30,13 @@ import { PortraitHeight, PortraitWidth } from '../character/Portrait.tsx';
 import { useSprites } from '../hooks/useSprites.tsx';
 
 type SpriteEntry = Readonly<{
+  canSave: boolean;
   group: string;
-  sprite: SpriteVariant;
+  id: string;
+  label: string;
+  regionSource: 'defined' | 'grid' | 'terrain';
+  sprite?: SpriteVariant;
+  staticURL?: string;
   variants: ReadonlyArray<number>;
   waterSwap: boolean;
 }>;
@@ -57,20 +65,81 @@ const maxUndoSteps = 20;
 
 const spriteEntries: ReadonlyArray<SpriteEntry> = [...VariantConfiguration]
   .map(([sprite, configuration]) => ({
+    canSave: true,
     group: getSpriteGroup(sprite),
+    id: `sprite:${sprite}`,
+    label: sprite,
+    regionSource: 'defined' as const,
     sprite,
     variants: [...configuration.variantNames].sort((a, b) => a - b),
     waterSwap: !!configuration.waterSwap,
   }))
-  .sort((a, b) => a.sprite.localeCompare(b.sprite));
+  .sort((a, b) => a.label.localeCompare(b.label));
 
-const spriteGroups = ['All', ...new Set(spriteEntries.map(({ group }) => group))].sort((a, b) =>
-  a === 'All' ? -1 : b === 'All' ? 1 : a.localeCompare(b),
-);
+const terrainEntries: ReadonlyArray<SpriteEntry> = [
+  ['Tiles0', 'Grassland', 'assets/render/Tiles0.png'],
+  ['Tiles1', 'Desert', 'assets/render/Tiles1.png'],
+  ['Tiles2', 'Snow', 'assets/render/Tiles2.png'],
+  ['Tiles3', 'Swamp', 'assets/render/Tiles3.png'],
+  ['Tiles4', 'Spaceship', 'assets/render/Tiles4.png'],
+  ['Tiles5', 'Volcano', 'assets/render/Tiles5.png'],
+  ['Tiles6', 'Luna', 'assets/render/Tiles6.png'],
+].map(([id, label, path]) => ({
+  canSave: false,
+  group: 'Terrain',
+  id: `static:${id}`,
+  label: `Terrain: ${label}`,
+  regionSource: 'terrain',
+  staticURL: assetPath(path),
+  variants: [0],
+  waterSwap: false,
+}));
+
+const staticEntries: ReadonlyArray<SpriteEntry> = [
+  ['Crane', 'assets/Crane.png'],
+  ['Cursor', 'assets/Cursor.png'],
+  ['Damage', 'assets/Damage.png'],
+  ['Delete', 'assets/Delete.png'],
+  ['Explosion', 'assets/Explosion.png'],
+  ['Heal', 'assets/Heal.png'],
+  ['Poison', 'assets/Poison.png'],
+  ['Sabotage', 'assets/Sabotage.png'],
+  ['Shield', 'assets/Shield.png'],
+  ['Structures', 'assets/Structures.png'],
+  ['TileDecorators', 'assets/TileDecorators.png'],
+  ['UnitIcons', 'assets/UnitIcons.png'],
+  ['Upgrade', 'assets/Upgrade.png'],
+].map(([id, path]) => ({
+  canSave: false,
+  group: 'Static',
+  id: `static:${id}`,
+  label: `Static: ${id}`,
+  regionSource: 'grid',
+  staticURL: assetPath(path),
+  variants: [0],
+  waterSwap: false,
+}));
+
+const sheetEntries: ReadonlyArray<SpriteEntry> = [
+  ...spriteEntries,
+  ...terrainEntries,
+  ...staticEntries,
+];
+
+const priorityGroups = ['All', 'Units', 'Buildings', 'Portraits', 'Terrain', 'Static'];
+const spriteGroups = [
+  ...priorityGroups,
+  ...[...new Set(sheetEntries.map(({ group }) => group))].filter(
+    (group) => !priorityGroups.includes(group),
+  ),
+];
 
 function getSpriteGroup(sprite: SpriteVariant) {
   if (sprite.startsWith('Units-')) {
     return 'Units';
+  }
+  if (sprite === 'Portraits') {
+    return 'Portraits';
   }
   if (sprite.includes('Building')) {
     return 'Buildings';
@@ -82,14 +151,19 @@ function getResourceName(sprite: SpriteVariant, variant: number, biome: Biome | 
   return `${sprite}-${variant}${biome != null ? `-${biome}` : ''}`;
 }
 
-function getDefaultRegionSize(sprite: SpriteVariant): Dimensions {
+function getEntryResourceName(entry: SpriteEntry, variant: number, biome: Biome | null) {
+  return entry.sprite ? getResourceName(entry.sprite, variant, biome) : entry.id.replace(':', '-');
+}
+
+function getDefaultRegionSize(entry: SpriteEntry): Dimensions {
+  const { sprite } = entry;
   if (sprite === 'Portraits') {
     return { height: PortraitHeight, width: PortraitWidth };
   }
-  if (sprite === 'Buildings' || sprite === 'Building-Create' || sprite.endsWith('Shadow')) {
+  if (sprite === 'Buildings' || sprite === 'Building-Create' || sprite?.endsWith('Shadow')) {
     return { height: TileSize * 2, width: TileSize };
   }
-  if (sprite.startsWith('Units-') || sprite.startsWith('Attack')) {
+  if (sprite?.startsWith('Units-') || sprite?.startsWith('Attack')) {
     return { height: unitSpriteSize, width: unitSpriteSize };
   }
   return { height: TileSize, width: TileSize };
@@ -103,9 +177,9 @@ function addRegion(regions: Array<SpriteRegion>, region: SpriteRegion) {
 
 function createGridRegions(
   dimensions: Dimensions,
-  sprite: SpriteVariant,
+  entry: SpriteEntry,
 ): ReadonlyArray<SpriteRegion> {
-  const { height, width } = getDefaultRegionSize(sprite);
+  const { height, width } = getDefaultRegionSize(entry);
   if (dimensions.width < width || dimensions.height < height) {
     return [];
   }
@@ -127,8 +201,188 @@ function createGridRegions(
   return regions;
 }
 
-function createDefinedRegions(sprite: SpriteVariant, variant: number): ReadonlyArray<SpriteRegion> {
+function isRegionInBounds(region: SpriteRegion, dimensions: Dimensions) {
+  return (
+    region.x >= 0 &&
+    region.y >= 0 &&
+    region.x + region.width <= dimensions.width &&
+    region.y + region.height <= dimensions.height
+  );
+}
+
+function getModifierName(modifier: Modifier) {
+  return Modifier[modifier] || `Modifier ${modifier}`;
+}
+
+function addTileSourceRegion(
+  regions: Array<SpriteRegion>,
+  id: string,
+  label: string,
+  description: string,
+  x: number,
+  y: number,
+  width = TileSize,
+  height = TileSize,
+) {
+  addRegion(regions, {
+    description: `${description} Source ${x}, ${y}; target ${width}x${height}.`,
+    height,
+    id,
+    label: `${label} (${width}x${height})`,
+    width,
+    x,
+    y,
+  });
+}
+
+function addTileVectorRegion(
+  regions: Array<SpriteRegion>,
+  id: string,
+  label: string,
+  description: string,
+  baseX: number,
+  baseY: number,
+  vector: Readonly<{ x: number; y: number }>,
+  width = TileSize,
+  height = TileSize,
+) {
+  addTileSourceRegion(
+    regions,
+    id,
+    label,
+    description,
+    (baseX + vector.x) * TileSize,
+    (baseY + vector.y) * TileSize,
+    width,
+    height,
+  );
+}
+
+function createTerrainRegions(): ReadonlyArray<SpriteRegion> {
   const regions: Array<SpriteRegion> = [];
+
+  mapTiles((tile) => {
+    const baseX = tile.sprite.position.x;
+    const baseY = tile.sprite.position.y;
+    addTileVectorRegion(
+      regions,
+      `tile-${tile.id}-base`,
+      `${tile.name}: base`,
+      'Base tile region from TileInfo.sprite.position.',
+      baseX,
+      baseY,
+      { x: 0, y: 0 },
+    );
+
+    const { animation } = tile.sprite;
+    if (animation) {
+      for (let frame = 1; frame < animation.frames; frame++) {
+        addTileVectorRegion(
+          regions,
+          `tile-${tile.id}-animation-${frame}`,
+          `${tile.name}: animation ${frame + 1}`,
+          'Animated tile frame used by renderTile.',
+          baseX,
+          baseY,
+          animation.horizontal ? { x: frame, y: 0 } : { x: 0, y: frame },
+        );
+      }
+    }
+
+    for (const [modifierId, rawModifier] of tile.sprite.modifiers) {
+      const modifierName = getModifierName(modifierId);
+      const modifier = rawModifier as
+        | Readonly<{ x: number; y: number }>
+        | ReadonlyArray<RenderType | Readonly<{ x: number; y: number }>>;
+      const label = `${tile.name}: ${modifierName}`;
+      const description = `Tile modifier ${modifierName} from TileInfo.sprite.modifiers.`;
+
+      if (!Array.isArray(modifier)) {
+        const vector = modifier as Readonly<{ x: number; y: number }>;
+        addTileVectorRegion(
+          regions,
+          `tile-${tile.id}-${modifierName}`,
+          label,
+          description,
+          baseX,
+          baseY,
+          vector,
+        );
+        continue;
+      }
+
+      if (modifier[0] === RenderType.Quarter) {
+        for (const [index, part] of ['top-left', 'top-right', 'bottom-left', 'bottom-right'].entries()) {
+          addTileVectorRegion(
+            regions,
+            `tile-${tile.id}-${modifierName}-${part}`,
+            `${label}: ${part}`,
+            description,
+            baseX,
+            baseY,
+            modifier[index + 1] as Readonly<{ x: number; y: number }>,
+            TileSize / 2,
+            TileSize / 2,
+          );
+        }
+      } else if (modifier[0] === RenderType.Horizontal) {
+        for (const [index, part] of ['top half', 'bottom half'].entries()) {
+          addTileVectorRegion(
+            regions,
+            `tile-${tile.id}-${modifierName}-${part}`,
+            `${label}: ${part}`,
+            description,
+            baseX,
+            baseY,
+            modifier[index + 1] as Readonly<{ x: number; y: number }>,
+            TileSize,
+            TileSize / 2,
+          );
+        }
+      } else if (modifier[0] === RenderType.Vertical) {
+        for (const [index, part] of ['left half', 'right half'].entries()) {
+          addTileVectorRegion(
+            regions,
+            `tile-${tile.id}-${modifierName}-${part}`,
+            `${label}: ${part}`,
+            description,
+            baseX,
+            baseY,
+            modifier[index + 1] as Readonly<{ x: number; y: number }>,
+            TileSize / 2,
+            TileSize,
+          );
+        }
+      } else if (modifier[0] === RenderType.Composite) {
+        for (const [index, part] of ['base', 'overlay'].entries()) {
+          addTileVectorRegion(
+            regions,
+            `tile-${tile.id}-${modifierName}-${part}`,
+            `${label}: ${part}`,
+            description,
+            baseX,
+            baseY,
+            modifier[index + 1] as Readonly<{ x: number; y: number }>,
+          );
+        }
+      }
+    }
+  });
+
+  return regions.sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function createDefinedRegions(entry: SpriteEntry, variant: number): ReadonlyArray<SpriteRegion> {
+  const regions: Array<SpriteRegion> = [];
+  const { sprite } = entry;
+
+  if (entry.regionSource === 'terrain') {
+    return createTerrainRegions();
+  }
+
+  if (!sprite) {
+    return regions;
+  }
 
   if (sprite === 'Buildings') {
     mapBuildings((building) => {
@@ -282,8 +536,8 @@ export default function SpriteEditor() {
   const cropCanvasRef = useRef<HTMLCanvasElement>(null);
   const [group, setGroup] = useState('All');
   const [search, setSearch] = useState('');
-  const [selectedSprite, setSelectedSprite] = useState<SpriteVariant>(spriteEntries[0].sprite);
-  const [selectedVariant, setSelectedVariant] = useState(spriteEntries[0].variants[0] || 0);
+  const [selectedEntryId, setSelectedEntryId] = useState(sheetEntries[0].id);
+  const [selectedVariant, setSelectedVariant] = useState(sheetEntries[0].variants[0] || 0);
   const [selectedBiome, setSelectedBiome] = useState<Biome>(Biome.Grassland);
   const [workingURL, setWorkingURL] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState<Dimensions | null>(null);
@@ -296,37 +550,38 @@ export default function SpriteEditor() {
   const [overrideNames, setOverrideNames] = useState(() => new Set(listSpriteOverrides()));
 
   const selectedEntry = useMemo(
-    () => spriteEntries.find(({ sprite }) => sprite === selectedSprite) || spriteEntries[0],
-    [selectedSprite],
+    () => sheetEntries.find(({ id }) => id === selectedEntryId) || sheetEntries[0],
+    [selectedEntryId],
   );
   const selectedResourceBiome = selectedEntry.waterSwap ? selectedBiome : null;
-  const resourceName = getResourceName(selectedSprite, selectedVariant, selectedResourceBiome);
-  const hasOverride = overrideNames.has(resourceName);
+  const resourceName = getEntryResourceName(selectedEntry, selectedVariant, selectedResourceBiome);
+  const hasOverride = selectedEntry.canSave && overrideNames.has(resourceName);
 
   const filteredEntries = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return spriteEntries.filter(
-      ({ group: entryGroup, sprite }) =>
+    return sheetEntries.filter(
+      ({ group: entryGroup, label }) =>
         (group === 'All' || entryGroup === group) &&
-        (!query || sprite.toLowerCase().includes(query)),
+        (!query || label.toLowerCase().includes(query)),
     );
   }, [group, search]);
   const definedRegions = useMemo(
-    () => createDefinedRegions(selectedSprite, selectedVariant),
-    [selectedSprite, selectedVariant],
+    () => createDefinedRegions(selectedEntry, selectedVariant),
+    [selectedEntry, selectedVariant],
   );
   const spriteRegions = useMemo(() => {
     if (!dimensions) {
       return definedRegions;
     }
-    return definedRegions.length ? definedRegions : createGridRegions(dimensions, selectedSprite);
-  }, [definedRegions, dimensions, selectedSprite]);
+    const regions = definedRegions.length ? definedRegions : createGridRegions(dimensions, selectedEntry);
+    return regions.filter((region) => isRegionInBounds(region, dimensions));
+  }, [definedRegions, dimensions, selectedEntry]);
   const selectedRegion =
     spriteRegions.find(({ id }) => id === selectedRegionId) || spriteRegions[0] || null;
 
-  const selectSprite = useCallback((sprite: SpriteVariant) => {
-    const entry = spriteEntries.find((entry) => entry.sprite === sprite);
-    setSelectedSprite(sprite);
+  const selectEntry = useCallback((entryId: string) => {
+    const entry = sheetEntries.find((entry) => entry.id === entryId) || sheetEntries[0];
+    setSelectedEntryId(entry.id);
     setSelectedVariant(entry?.variants[0] || 0);
     setSelectedRegionId(null);
     setUndoStack([]);
@@ -353,12 +608,20 @@ export default function SpriteEditor() {
 
       try {
         setWorkingURL(
-          spriteURL(selectedSprite, selectedVariant, selectedResourceBiome ?? undefined),
+          selectedEntry.sprite
+            ? spriteURL(selectedEntry.sprite, selectedVariant, selectedResourceBiome ?? undefined)
+            : selectedEntry.staticURL || null,
         );
         setSelectedRegionId(null);
         setUndoStack([]);
         setHasUnsavedChanges(false);
-        setMessage(hasOverride ? 'Loaded local override.' : 'Loaded original sprite sheet.');
+        setMessage(
+          selectedEntry.canSave
+            ? hasOverride
+              ? 'Loaded local override.'
+              : 'Loaded original sprite sheet.'
+            : 'Loaded static renderer sheet. You can inspect, import, and export it, but local overrides do not affect the game yet.',
+        );
       } catch (error) {
         setWorkingURL(null);
         setDimensions(null);
@@ -369,7 +632,7 @@ export default function SpriteEditor() {
     return () => {
       isCurrent = false;
     };
-  }, [hasOverride, hasSprites, selectedResourceBiome, selectedSprite, selectedVariant]);
+  }, [hasOverride, hasSprites, selectedEntry, selectedResourceBiome, selectedVariant]);
 
   useEffect(() => {
     if (!workingURL) {
@@ -464,33 +727,100 @@ export default function SpriteEditor() {
     [dimensions, drawSelectedRegion, spriteRegions],
   );
 
-  const importPNG = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.currentTarget.files?.[0];
-    event.currentTarget.value = '';
-    if (!file) {
-      return;
-    }
-    if (!file.type.startsWith('image/')) {
-      setMessage('Choose a PNG or another browser-readable image file.');
-      return;
-    }
+  const importPNG = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.currentTarget.files?.[0];
+      event.currentTarget.value = '';
+      if (!file) {
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        setMessage('Choose a PNG or another browser-readable image file.');
+        return;
+      }
 
-    try {
-      const dataURL = await readImageFile(file);
-      await loadImage(dataURL);
-      setWorkingURL(dataURL);
-      setSelectedRegionId(null);
-      setUndoStack([]);
-      setHasUnsavedChanges(true);
-      setMessage(`Imported ${file.name}. Save the override to use it in game.`);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Image could not be imported.');
-    }
-  }, []);
+      try {
+        const dataURL = await readImageFile(file);
+        const image = await loadImage(dataURL);
+        const width = image.naturalWidth || image.width;
+        const height = image.naturalHeight || image.height;
+
+        if (dimensions && (width !== dimensions.width || height !== dimensions.height)) {
+          setMessage(
+            `Imported sheet is ${width}x${height}, but ${resourceName} is ${dimensions.width}x${dimensions.height}. Use Import Region to resize it into the selected region instead.`,
+          );
+          return;
+        }
+
+        setWorkingURL(dataURL);
+        setSelectedRegionId(null);
+        setUndoStack([]);
+        setHasUnsavedChanges(true);
+        setMessage(
+          selectedEntry.canSave
+            ? `Imported ${file.name}. Save the override to use it in game.`
+            : `Imported ${file.name}. Static renderer sheets can be exported, but local overrides do not affect the game yet.`,
+        );
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : 'Image could not be imported.');
+      }
+    },
+    [dimensions, resourceName, selectedEntry.canSave],
+  );
+
+  const importRegion = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.currentTarget.files?.[0];
+      event.currentTarget.value = '';
+      if (!file || !selectedRegion) {
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        setMessage('Choose a PNG or another browser-readable image file.');
+        return;
+      }
+
+      try {
+        const dataURL = await readImageFile(file);
+        const image = await loadImage(dataURL);
+        const cropCanvas = cropCanvasRef.current;
+        if (!cropCanvas) {
+          return;
+        }
+
+        const sourceWidth = image.naturalWidth || image.width;
+        const sourceHeight = image.naturalHeight || image.height;
+        try {
+          const undoDataURL = cropCanvas.toDataURL('image/png');
+          setUndoStack((stack) => [undoDataURL, ...stack].slice(0, maxUndoSteps));
+        } catch {
+          // Undo is best-effort for imported images.
+        }
+        cropCanvas.width = selectedRegion.width;
+        cropCanvas.height = selectedRegion.height;
+        const context = cropCanvas.getContext('2d')!;
+        context.imageSmoothingEnabled = false;
+        context.clearRect(0, 0, selectedRegion.width, selectedRegion.height);
+        context.drawImage(image, 0, 0, selectedRegion.width, selectedRegion.height);
+        setMessage(
+          `Imported ${file.name} and resized ${sourceWidth}x${sourceHeight} -> ${selectedRegion.width}x${selectedRegion.height}. Apply Region, then save the override.`,
+        );
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : 'Image could not be imported.');
+      }
+    },
+    [selectedRegion],
+  );
 
   const saveOverride = useCallback(() => {
     const canvas = sheetCanvasRef.current;
     if (!canvas) {
+      return;
+    }
+    if (!selectedEntry.canSave) {
+      setMessage(
+        'This static renderer sheet can be exported, but local overrides do not affect the game yet.',
+      );
       return;
     }
 
@@ -508,9 +838,13 @@ export default function SpriteEditor() {
     } catch {
       setMessage('Could not save this sheet. Import it as a local PNG first, then edit it.');
     }
-  }, [resourceName]);
+  }, [resourceName, selectedEntry.canSave]);
 
   const clearOverride = useCallback(() => {
+    if (!selectedEntry.canSave || !selectedEntry.sprite) {
+      setMessage('This static renderer sheet does not have a local game override yet.');
+      return;
+    }
     if (!deleteSpriteOverride(resourceName)) {
       setMessage('No local override could be removed.');
       return;
@@ -518,10 +852,10 @@ export default function SpriteEditor() {
 
     updatePreparedSprite(resourceName);
     setOverrideNames(new Set(listSpriteOverrides()));
-    setWorkingURL(spriteURL(selectedSprite, selectedVariant, selectedResourceBiome ?? undefined));
+    setWorkingURL(spriteURL(selectedEntry.sprite, selectedVariant, selectedResourceBiome ?? undefined));
     setHasUnsavedChanges(false);
     setMessage(`Cleared local override for ${resourceName}.`);
-  }, [resourceName, selectedResourceBiome, selectedSprite, selectedVariant]);
+  }, [resourceName, selectedEntry, selectedResourceBiome, selectedVariant]);
 
   const exportSheet = useCallback(() => {
     const canvas = sheetCanvasRef.current;
@@ -609,8 +943,12 @@ export default function SpriteEditor() {
     );
     context.drawImage(cropCanvas, selectedRegion.x, selectedRegion.y);
     setHasUnsavedChanges(true);
-    setMessage('Applied the edited region to the sheet. Save the override to use it in game.');
-  }, [selectedRegion]);
+    setMessage(
+      selectedEntry.canSave
+        ? 'Applied the edited region to the sheet. Save the override to use it in game.'
+        : 'Applied the edited region to the sheet. Export it as a PNG; static overrides are not wired into the game yet.',
+    );
+  }, [selectedEntry.canSave, selectedRegion]);
 
   const editorScale = selectedRegion
     ? Math.max(2, Math.min(editorZoom, Math.floor(420 / selectedRegion.width)))
@@ -661,33 +999,33 @@ export default function SpriteEditor() {
             />
           </label>
           <label className={fieldStyle}>
-            <span>Sprite</span>
+            <span>Sheet</span>
             <select
-              onChange={(event) => selectSprite(event.currentTarget.value as SpriteVariant)}
-              value={selectedSprite}
+              onChange={(event) => selectEntry(event.currentTarget.value)}
+              value={selectedEntry.id}
             >
-              {filteredEntries.map(({ sprite }) => (
-                <option key={sprite} value={sprite}>
-                  {sprite}
+              {filteredEntries.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
                 </option>
               ))}
             </select>
           </label>
           <p className={catalogMetaStyle}>
-            Showing {filteredEntries.length} of {spriteEntries.length} sprites.
+            Showing {filteredEntries.length} of {sheetEntries.length} sheets.
           </p>
           <div className={quickSpriteListStyle}>
             {filteredEntries.length ? (
-              filteredEntries.map(({ sprite }) => (
+              filteredEntries.map(({ id, label }) => (
                 <button
                   className={cx(
                     spriteButtonStyle,
-                    sprite === selectedSprite && selectedSpriteStyle,
+                    id === selectedEntry.id && selectedSpriteStyle,
                   )}
-                  key={sprite}
-                  onClick={() => selectSprite(sprite)}
+                  key={id}
+                  onClick={() => selectEntry(id)}
                 >
-                  {sprite}
+                  {label}
                 </button>
               ))
             ) : (
@@ -751,13 +1089,17 @@ export default function SpriteEditor() {
               <input accept="image/png,image/*" onChange={importPNG} type="file" />
             </label>
 
-            <button className={actionButtonStyle} onClick={saveOverride}>
+            <button className={actionButtonStyle} disabled={!selectedEntry.canSave} onClick={saveOverride}>
               Save Override
             </button>
             <button className={actionButtonStyle} onClick={exportSheet}>
               Export PNG
             </button>
-            <button className={actionButtonStyle} disabled={!hasOverride} onClick={clearOverride}>
+            <button
+              className={actionButtonStyle}
+              disabled={!selectedEntry.canSave || !hasOverride}
+              onClick={clearOverride}
+            >
               Clear Override
             </button>
           </div>
@@ -786,6 +1128,18 @@ export default function SpriteEditor() {
                   ? `${selectedRegion.label} at ${selectedRegion.x}, ${selectedRegion.y}`
                   : 'None'}
               </span>
+            </div>
+            <div>
+              <strong>Target</strong>
+              <span>
+                {selectedRegion
+                  ? `${selectedRegion.width}x${selectedRegion.height} pixels`
+                  : 'None'}
+              </span>
+            </div>
+            <div>
+              <strong>Override</strong>
+              <span>{selectedEntry.canSave ? 'Game override supported' : 'Export only'}</span>
             </div>
           </div>
 
@@ -878,6 +1232,10 @@ export default function SpriteEditor() {
                     </label>
                   </div>
                   <div className={buttonRowStyle}>
+                    <label className={cx(actionButtonStyle, fileButtonStyle)}>
+                      Import Region
+                      <input accept="image/png,image/*" onChange={importRegion} type="file" />
+                    </label>
                     <button
                       className={actionButtonStyle}
                       disabled={!undoStack.length}

@@ -158,7 +158,7 @@ export default withModifiers(
       [2, 3, { g: 40, h: 100, i: Pioneer.id, p: 1 }],
       [3, 2, { g: 40, h: 100, i: Infantry.id, p: 1 }],
       [4, 2, { g: 60, h: 100, i: Jeep.id, p: 1 }],
-      [3, 4, { a: [[1, 6]], g: 50, h: 100, i: Artillery.id, p: 1 }],
+      [3, 4, { a: [[1, 7]], g: 40, h: 100, i: Artillery.id, p: 1 }],
       [9, 6, { g: 40, h: 100, i: Pioneer.id, p: 2 }],
       [8, 7, { g: 40, h: 100, i: Infantry.id, p: 2 }],
       [7, 7, { g: 60, h: 100, i: Jeep.id, p: 2 }],

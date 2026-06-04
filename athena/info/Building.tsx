@@ -244,6 +244,8 @@ export class BuildingInfo {
   }
 }
 
+const standardBuildingEditorPlaceOn = new Set([Plain, ConstructionSite, Street]);
+
 export const HQ = new BuildingInfo(
   1,
   'HQ',
@@ -251,7 +253,7 @@ export const HQ = new BuildingInfo(
   {
     canBeCreated: false,
     defense: 40,
-    editorPlaceOn: new Set([Plain, ConstructionSite]),
+    editorPlaceOn: standardBuildingEditorPlaceOn,
     limit: 1,
     restrictedUnits: SpecialUnits,
     sort: 1,
@@ -272,6 +274,7 @@ export const House = new BuildingInfo(
   {
     cost: 100,
     defense: 10,
+    editorPlaceOn: standardBuildingEditorPlaceOn,
     funds: MinFunds,
     placeOn: new Set([ConstructionSite]),
     sort: 2,
@@ -286,6 +289,7 @@ export const Factory = new BuildingInfo(
   {
     cost: 250,
     defense: 10,
+    editorPlaceOn: standardBuildingEditorPlaceOn,
     placeOn: new Set([ConstructionSite]),
     restrictedUnits: SpecialUnits,
     sort: 3,
@@ -459,6 +463,7 @@ export const Barracks = new BuildingInfo(
   {
     cost: 150,
     defense: 20,
+    editorPlaceOn: standardBuildingEditorPlaceOn,
     placeOn: new Set([ConstructionSite]),
     restrictedUnits: SpecialUnits,
     sort: 2,

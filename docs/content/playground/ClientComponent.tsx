@@ -12,6 +12,7 @@ const modules = {
   playgroundDemoGame: lazy(() => import('./PlaygroundDemoGame.tsx')),
   playgroundMainMenu: lazy(() => import('./PlaygroundMainMenu.tsx')),
   portraits: lazy(() => import('../examples/portraits-example.tsx')),
+  spriteEditor: lazy(() => import('@deities/hera/editor/SpriteEditor.tsx')),
 };
 
 export default function ClientComponent({ module }: { module: keyof typeof modules }) {

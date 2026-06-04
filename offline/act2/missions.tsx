@@ -56,7 +56,7 @@ const mission1: Act2MissionDefinition = {
       [1, 1, { h: 100, i: HQ.id, p: 1 }],
       [2, 2, { h: 100, i: Factory.id, p: 1 }],
       [8, 5, { h: 100, i: House.id, l: 1, p: 0 }],
-      [11, 9, { h: 100, i: HQ.id, p: 2 }],
+      [10, 9, { h: 100, i: HQ.id, p: 2 }],
     ],
     config: {
       blocklistedBuildings: [],
@@ -115,7 +115,7 @@ const mission2: Act2MissionDefinition = {
     buildings: [
       [1, 1, { h: 100, i: HQ.id, p: 1 }],
       [2, 2, { h: 100, i: Factory.id, p: 1 }],
-      [11, 9, { h: 100, i: HQ.id, p: 2 }],
+      [10, 9, { h: 100, i: HQ.id, p: 2 }],
     ],
     config: {
       blocklistedBuildings: [],
@@ -172,7 +172,7 @@ const mission3: Act2MissionDefinition = {
     buildings: [
       [1, 1, { h: 100, i: HQ.id, p: 1 }],
       [2, 2, { h: 100, i: Factory.id, p: 1 }],
-      [11, 9, { h: 100, i: HQ.id, p: 2 }],
+      [10, 9, { h: 100, i: HQ.id, p: 2 }],
     ],
     config: {
       blocklistedBuildings: [],
@@ -187,7 +187,7 @@ const mission3: Act2MissionDefinition = {
     size: act2MapSize,
     teams: standardTeams(300),
     units: [
-      [3, 5, { a: [[1, 8]], g: 50, h: 100, i: Artillery.id, p: 1 }],
+      [3, 5, { a: [[1, 8]], g: 40, h: 100, i: Artillery.id, p: 1 }],
       [4, 4, { g: 60, h: 100, i: Jeep.id, p: 1 }],
       [3, 4, { g: 50, h: 100, i: Infantry.id, p: 1 }],
       [8, 6, { g: 50, h: 90, i: Infantry.id, p: 2 }],
@@ -237,7 +237,7 @@ const mission4: Act2MissionDefinition = {
       [1, 1, { h: 100, i: HQ.id, p: 1 }],
       [2, 2, { h: 100, i: Factory.id, p: 1 }],
       [9, 5, { h: 100, i: House.id, l: 1, p: 0 }],
-      [11, 9, { h: 100, i: HQ.id, p: 2 }],
+      [10, 9, { h: 100, i: HQ.id, p: 2 }],
     ],
     config: {
       blocklistedBuildings: [],
@@ -336,12 +336,12 @@ const mission5: Act2MissionDefinition = {
     units: [
       [3, 3, { g: 40, h: 100, i: Pioneer.id, p: 1 }],
       [4, 3, { g: 50, h: 100, i: Infantry.id, p: 1 }],
-      [3, 5, { g: 50, h: 100, i: ArtilleryHumvee.id, p: 1 }],
+      [3, 5, { g: 40, h: 100, i: ArtilleryHumvee.id, p: 1 }],
       [4, 4, { g: 60, h: 100, i: Jeep.id, p: 1 }],
       [8, 7, { g: 50, h: 95, i: Infantry.id, p: 2 }],
       [9, 8, { g: 50, h: 90, i: Infantry.id, p: 2 }],
       [10, 9, { g: 50, h: 85, i: Infantry.id, p: 2 }],
-      [11, 7, { g: 50, h: 100, i: Artillery.id, p: 2 }],
+      [11, 7, { g: 40, h: 100, i: Artillery.id, p: 2 }],
     ],
   }),
   mapName: 'Act 2-5: The Burning Gate',

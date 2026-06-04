@@ -37,6 +37,7 @@ import { AlertContext } from '@deities/ui/hooks/useAlert.tsx';
 import useScale, { ScaleContext } from '@deities/ui/hooks/useScale.tsx';
 import { setDefaultPortalContainer } from '@deities/ui/Portal.tsx';
 import ScrollContainer from '@deities/ui/ScrollContainer.tsx';
+import Spinner from '@deities/ui/Spinner.tsx';
 import { css, cx, injectGlobal } from '@emotion/css';
 import { VisibilityStateContext } from '@nkzw/use-visibility-state';
 import {
@@ -57,7 +58,6 @@ import {
 } from './campaign1Map.tsx';
 import { getDefaultTutorialMap, needsOfficialCampaignReseed } from './tutorial/seed.tsx';
 import CampaignMenu from './CampaignMenu.tsx';
-import { persistMapToProject } from './persistMapToProject.ts';
 import starterMap, { starterMapMetadata } from './starterMap.tsx';
 
 const campaign1TutorialVersionKey = '::OpenWars::campaign-1-tutorial-version';
@@ -251,9 +251,12 @@ function OpenWarsApp() {
   const [completedCampaignMapIds, setCompletedCampaignMapIds] = useState(() =>
     loadCompletedCampaignMapIds(),
   );
+  const [isBooting, setIsBooting] = useState(true);
 
   useEffect(() => {
-    prepareSprites().catch(() => {});
+    prepareSprites()
+      .catch(() => {})
+      .finally(() => setIsBooting(false));
   }, []);
 
   useEffect(() => {
@@ -460,18 +463,13 @@ function OpenWarsApp() {
   }, []);
 
   const saveCreatedMap = useCallback(
-    (
-      mapObject: MapObject,
-      setSaveState?: Parameters<MapCreateFunction>[1],
-      afterLocalSave?: (mapObject: MapObject) => void,
-    ) => {
+    (mapObject: MapObject, setSaveState: Parameters<MapCreateFunction>[1]) => {
       const maps = upsertEditorMapObject(editorMapLibrary.maps, mapObject);
       if (saveEditorMapObjects(maps, setSaveState)) {
         setEditorMapLibrary({
           current: mapObject,
           maps,
         });
-        afterLocalSave?.(mapObject);
       }
     },
     [editorMapLibrary.maps],
@@ -494,25 +492,7 @@ function OpenWarsApp() {
         setSaveState({ id: 'name-exists' });
         return;
       }
-
-      const mapObject = createEditorMapObject(variables, variables.id);
-      saveCreatedMap(mapObject, setSaveState, (savedMapObject) => {
-        if (!import.meta.env.DEV) {
-          return;
-        }
-
-        void persistMapToProject(savedMapObject).then((result) => {
-          if (result.ok) {
-            setSaveState({
-              message: 'Map saved to browser and missions.tsx.',
-            });
-          } else if (result.error) {
-            setSaveState({
-              message: `Saved in browser. ${result.error}`,
-            });
-          }
-        });
-      });
+      saveCreatedMap(createEditorMapObject(variables, variables.id), setSaveState);
     },
     [editorMapLibrary.maps, saveCreatedMap],
   );
@@ -543,6 +523,14 @@ function OpenWarsApp() {
     });
     setEditorSessionKey((key) => key + 1);
   }, []);
+
+  if (isBooting) {
+    return (
+      <main className={bootScreen}>
+        <Spinner />
+      </main>
+    );
+  }
 
   if (screen === 'playing') {
     return (
@@ -1178,6 +1166,7 @@ const appScope = css`
   min-height: 100vh;
   outline: none;
   touch-action: pan-x pan-y;
+  width: 100%;
 
   img {
     max-width: initial;
@@ -1190,12 +1179,18 @@ const appScope = css`
   ${getScopedCSSDefinitions()}
 `;
 
+const bootScreen = css`
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  width: 100%;
+`;
+
 const menuScreen = css`
   align-items: center;
-  background:
-    radial-gradient(circle at 28% 24%, rgba(111, 191, 115, 0.32), transparent 28%),
-    radial-gradient(circle at 78% 22%, rgba(31, 111, 139, 0.34), transparent 26%),
-    linear-gradient(135deg, #121926, #22364a 48%, #182533);
   display: flex;
   justify-content: center;
   min-height: 100vh;
@@ -1203,18 +1198,7 @@ const menuScreen = css`
   min-height: 100dvh;
   padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
   position: relative;
-
-  &::before {
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
-    background-size: 48px 48px;
-    content: '';
-    inset: 0;
-    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.7), transparent);
-    pointer-events: none;
-    position: absolute;
-  }
+  width: 100%;
 `;
 
 const menuCard = css`
