@@ -51,7 +51,15 @@ import {
 } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
+import {
+  campaign1TutorialVersion,
+  ensureCampaign1TutorialMap,
+} from './campaign1Map.tsx';
+import { getDefaultTutorialMap, needsOfficialCampaignReseed } from './tutorial/seed.tsx';
+import CampaignMenu from './CampaignMenu.tsx';
 import starterMap, { starterMapMetadata } from './starterMap.tsx';
+
+const campaign1TutorialVersionKey = '::OpenWars::campaign-1-tutorial-version';
 
 type Screen = 'campaign' | 'mapEditor' | 'menu' | 'options' | 'playing' | 'spriteEditor';
 
@@ -548,40 +556,12 @@ function OpenWarsApp() {
 
   if (screen === 'campaign') {
     return (
-      <main className={menuScreen}>
-        <section className={menuCard}>
-          <p className={eyebrow}>Open Wars</p>
-          <h1 className={title}>Campaign</h1>
-          <p className={menuHint}>Choose a created map to start a campaign mission.</p>
-          {editorMapLibrary.maps.length ? (
-            <div className={createdMapList}>
-              {editorMapLibrary.maps.map((mapObject) => {
-                const isCompleted = completedCampaignMapIds.has(mapObject.id);
-
-                return (
-                  <button
-                    className={cx(menuButton, createdMapButton)}
-                    key={mapObject.id}
-                    onClick={() => playCampaignMap(mapObject)}
-                  >
-                    <span className={createdMapTitle}>
-                      {isCompleted ? <span className={campaignCompletedCheck}>✓</span> : null}
-                      <span>{mapObject.name || 'Untitled Map'}</span>
-                    </span>
-                    <span className={createdMapMeta}>{getEditorMapSummary(mapObject)}</span>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <p className={statusMessage}>Create maps in Map editor first.</p>
-          )}
-          {exitMessage ? <p className={statusMessage}>{exitMessage}</p> : null}
-          <button className={menuButton} onClick={backToMenu}>
-            Back
-          </button>
-        </section>
-      </main>
+      <CampaignMenu
+        completedMapIds={completedCampaignMapIds}
+        maps={editorMapLibrary.maps}
+        onBack={backToMenu}
+        onPlayMission={playCampaignMap}
+      />
     );
   }
 
@@ -1018,9 +998,21 @@ function saveEditorMapObjects(
 }
 
 function loadSavedEditorMapLibrary(): EditorMapLibrary {
-  const maps = loadSavedEditorMapObjects();
+  let maps = loadSavedEditorMapObjects();
+  const appliedTutorialVersion = Number(localStorage.getItem(campaign1TutorialVersionKey) || 0);
+  const shouldReseedOfficialMaps =
+    appliedTutorialVersion < campaign1TutorialVersion || needsOfficialCampaignReseed(maps);
+
+  if (shouldReseedOfficialMaps) {
+    maps = ensureCampaign1TutorialMap(maps, localMapCreator);
+    saveEditorMapObjects(maps);
+    localStorage.setItem(campaign1TutorialVersionKey, String(campaign1TutorialVersion));
+  }
+
+  const campaign1Map = getDefaultTutorialMap(maps);
+
   return {
-    current: maps[0] || null,
+    current: campaign1Map || maps[0] || null,
     maps,
   };
 }

@@ -42,6 +42,8 @@ import useAlert from '@deities/ui/hooks/useAlert.tsx';
 import useMedia from '@deities/ui/hooks/useMedia.tsx';
 import usePress from '@deities/ui/hooks/usePress.tsx';
 import useScale from '@deities/ui/hooks/useScale.tsx';
+import scrollToCenter from '@deities/ui/lib/scrollToCenter.tsx';
+import { getCurrentScrollContainer } from '@deities/ui/ScrollContainer.tsx';
 import Icon from '@deities/ui/Icon.tsx';
 import InlineLink from '@deities/ui/InlineLink.tsx';
 import Input from '@deities/ui/Input.tsx';
@@ -1076,9 +1078,44 @@ export default function MapEditor({
   const hidden = useHide();
   const horizontalMapMargin =
     tiltStyle === 'on' && tilted ? TileSize * 14 * Math.floor(map.size.height / 4) : TileSize * 40;
+  const verticalMapMargin =
+    tiltStyle === 'on' && tilted
+      ? TileSize * (12 + 5 * Math.floor(map.size.height / 4))
+      : TileSize * 20;
   const mapScrollAreaStyle = {
+    minHeight: map.size.height * TileSize * zoom + verticalMapMargin,
     minWidth: map.size.width * TileSize * zoom + horizontalMapMargin,
   };
+  const shouldScrollToCenter = renderKey === 0 || scrollRenderKey === renderKey;
+
+  useEffect(() => {
+    if (isPlayTesting || !shouldScrollToCenter) {
+      return;
+    }
+
+    let cancelled = false;
+    const frame = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!cancelled) {
+          scrollToCenter(getCurrentScrollContainer());
+        }
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
+  }, [
+    isPlayTesting,
+    map.size.height,
+    map.size.width,
+    shouldScrollToCenter,
+    tiltStyle,
+    tilted,
+    zoom,
+  ]);
+
   if (isPlayTesting) {
     return (
       <GameMap

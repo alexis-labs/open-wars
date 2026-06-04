@@ -324,6 +324,7 @@ export default class GameMap extends Component<Props, State> {
   private _timers: Set<TimerState>;
   private _waitingTimer: NativeTimeout = null;
   private _wrapperRef = createRef<HTMLDivElement>();
+  private _scrollToCenterFrame: number | null = null;
 
   constructor(props: Props) {
     super(props);
@@ -427,11 +428,7 @@ export default class GameMap extends Component<Props, State> {
     } = this;
 
     if (scroll) {
-      const container = this._getScrollContainer();
-      if (container === window) {
-        (this.context as RefObject<boolean>).current = true;
-      }
-      scrollToCenter(container);
+      this._scrollToCenterDeferred();
     }
 
     this._actionQueue = Promise.resolve().then(async () => {
@@ -545,6 +542,10 @@ export default class GameMap extends Component<Props, State> {
     if (this._skipActionsTimer != null) {
       clearTimeout(this._skipActionsTimer);
       this._skipActionsTimer = null;
+    }
+    if (this._scrollToCenterFrame != null) {
+      cancelAnimationFrame(this._scrollToCenterFrame);
+      this._scrollToCenterFrame = null;
     }
 
     document.removeEventListener('pointermove', this._pointerMove);
@@ -1835,6 +1836,22 @@ export default class GameMap extends Component<Props, State> {
 
   private _getScrollContainer = (): Element | Window =>
     this._maskRef.current?.closest(`.${ScrollContainerClassName}`) || window;
+
+  private _scrollToCenterDeferred = () => {
+    const container = this._getScrollContainer();
+    if (container === window) {
+      (this.context as RefObject<boolean>).current = true;
+    }
+    if (this._scrollToCenterFrame != null) {
+      cancelAnimationFrame(this._scrollToCenterFrame);
+    }
+    this._scrollToCenterFrame = requestAnimationFrame(() => {
+      this._scrollToCenterFrame = requestAnimationFrame(() => {
+        this._scrollToCenterFrame = null;
+        scrollToCenter(container);
+      });
+    });
+  };
 
   private _isInteractiveTarget = (target: EventTarget | null) =>
     !!(target as Element | null)?.closest?.(
