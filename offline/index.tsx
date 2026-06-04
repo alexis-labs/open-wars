@@ -57,6 +57,7 @@ import {
 } from './campaign1Map.tsx';
 import { getDefaultTutorialMap, needsOfficialCampaignReseed } from './tutorial/seed.tsx';
 import CampaignMenu from './CampaignMenu.tsx';
+import { persistMapToProject } from './persistMapToProject.ts';
 import starterMap, { starterMapMetadata } from './starterMap.tsx';
 
 const campaign1TutorialVersionKey = '::OpenWars::campaign-1-tutorial-version';
@@ -459,13 +460,18 @@ function OpenWarsApp() {
   }, []);
 
   const saveCreatedMap = useCallback(
-    (mapObject: MapObject, setSaveState: Parameters<MapCreateFunction>[1]) => {
+    (
+      mapObject: MapObject,
+      setSaveState?: Parameters<MapCreateFunction>[1],
+      afterLocalSave?: (mapObject: MapObject) => void,
+    ) => {
       const maps = upsertEditorMapObject(editorMapLibrary.maps, mapObject);
       if (saveEditorMapObjects(maps, setSaveState)) {
         setEditorMapLibrary({
           current: mapObject,
           maps,
         });
+        afterLocalSave?.(mapObject);
       }
     },
     [editorMapLibrary.maps],
@@ -488,7 +494,25 @@ function OpenWarsApp() {
         setSaveState({ id: 'name-exists' });
         return;
       }
-      saveCreatedMap(createEditorMapObject(variables, variables.id), setSaveState);
+
+      const mapObject = createEditorMapObject(variables, variables.id);
+      saveCreatedMap(mapObject, setSaveState, (savedMapObject) => {
+        if (!import.meta.env.DEV) {
+          return;
+        }
+
+        void persistMapToProject(savedMapObject).then((result) => {
+          if (result.ok) {
+            setSaveState({
+              message: 'Map saved to browser and missions.tsx.',
+            });
+          } else if (result.error) {
+            setSaveState({
+              message: `Saved in browser. ${result.error}`,
+            });
+          }
+        });
+      });
     },
     [editorMapLibrary.maps, saveCreatedMap],
   );
